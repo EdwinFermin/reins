@@ -4,7 +4,7 @@ All notable changes to Reins are documented here. This project adheres to
 [Semantic Versioning](https://semver.org/). The harness template version tracks
 the package version, so `reins update` migrates installed harnesses to it.
 
-## Unreleased
+## 0.2.0
 
 ### SDD — discovery phase before the spec
 
