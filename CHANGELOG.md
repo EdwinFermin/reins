@@ -4,7 +4,11 @@ All notable changes to Reins are documented here. This project adheres to
 [Semantic Versioning](https://semver.org/). The harness template version tracks
 the package version, so `reins update` migrates installed harnesses to it.
 
-## 0.1.0 — Unreleased
+## 0.1.1
+
+- Add the Reins logo to the README header.
+
+## 0.1.0
 
 Initial release. Reins installs and maintains a controlled, multi-agent harness
 on top of an existing project for Claude Code.
