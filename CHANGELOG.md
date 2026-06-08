@@ -4,6 +4,20 @@ All notable changes to Reins are documented here. This project adheres to
 [Semantic Versioning](https://semver.org/). The harness template version tracks
 the package version, so `reins update` migrates installed harnesses to it.
 
+## 0.2.0
+
+### SDD — discovery phase before the spec
+
+- New **Discovery** step in the Spec-Driven flow: for a `pending` feature the
+  leader analyzes the codebase and writes `specs/<feature>/discovery.md`
+  (findings, affected areas, approaches, open questions), then **stops for human
+  validation of intent** before any spec is drafted. New states `analyzing` and
+  `needs_clarification`, and a new `/validate-discovery` command.
+- `reins verify` enforces it: a feature in `needs_clarification`, `spec_ready`,
+  or `in_progress` must have a non-empty `discovery.md`, and only one feature may
+  be active (`analyzing`/`in_progress`) at a time.
+- `spec_author` now builds the spec from the validated discovery, not the title.
+
 ## 0.1.2
 
 - Use a PNG logo served over an absolute URL so it renders on the npm package

@@ -3,46 +3,86 @@ import path from "node:path";
 import { readJsonIfExists, readTextIfExists } from "../fs/read";
 import { fail, pass, skip, type CheckContext, type CheckResult } from "./types";
 
-const VALID_STATES = new Set(["pending", "spec_ready", "in_progress", "done", "blocked"]);
+const VALID_STATES = new Set([
+  "pending",
+  "analyzing",
+  "needs_clarification",
+  "spec_ready",
+  "in_progress",
+  "done",
+  "blocked",
+]);
+
+/** States that occupy the single active work slot — one feature at a time. */
+const ACTIVE_STATES = new Set(["analyzing", "in_progress"]);
+
+/** SDD states that must already have a recorded, human-validated discovery. */
+const REQUIRES_DISCOVERY = new Set(["needs_clarification", "spec_ready", "in_progress"]);
 
 interface FeatureListShape {
   features?: { slug?: string; state?: string }[];
 }
 
-/** Validate feature_list.json: present, parseable, ≤1 in_progress, valid states. */
+/**
+ * Validate feature_list.json: present, parseable, valid states, ≤1 active
+ * (analyzing/in_progress), and — for SDD — a discovery.md before the spec pipeline.
+ */
 export async function featureListCheck(ctx: CheckContext): Promise<CheckResult> {
   const start = Date.now();
   const data = await readJsonIfExists<FeatureListShape>(path.join(ctx.cwd, "feature_list.json"));
-  const ms = Date.now() - start;
-  if (data == null) return fail("feature-list", "feature_list.json missing or invalid JSON", ms);
+  if (data == null)
+    return fail("feature-list", "feature_list.json missing or invalid JSON", Date.now() - start);
 
   const features = Array.isArray(data.features) ? data.features : null;
-  if (!features) return fail("feature-list", "feature_list.json has no `features` array", ms);
+  if (!features)
+    return fail("feature-list", "feature_list.json has no `features` array", Date.now() - start);
 
-  const inProgress = features.filter((f) => f.state === "in_progress");
+  const active = features.filter((f) => typeof f.state === "string" && ACTIVE_STATES.has(f.state));
   const badStates = features.filter(
     (f) => typeof f.state === "string" && !VALID_STATES.has(f.state),
   );
 
-  if (inProgress.length > 1) {
+  if (active.length > 1) {
     return fail(
       "feature-list",
-      `${inProgress.length} features in_progress (max 1)`,
-      ms,
-      inProgress.map((f) => `- ${f.slug ?? "?"}`).join("\n"),
+      `${active.length} features active — only one may be analyzing/in_progress`,
+      Date.now() - start,
+      active.map((f) => `- ${f.slug ?? "?"} (${f.state})`).join("\n"),
     );
   }
   if (badStates.length > 0) {
     return fail(
       "feature-list",
       `invalid state(s): ${badStates.map((f) => f.state).join(", ")}`,
-      ms,
+      Date.now() - start,
     );
   }
+
+  // SDD: a feature cannot enter the spec/implementation pipeline without a
+  // recorded, human-validated discovery.
+  if (ctx.config.preset === "sdd") {
+    const missing: string[] = [];
+    for (const f of features) {
+      if (typeof f.state !== "string" || !REQUIRES_DISCOVERY.has(f.state)) continue;
+      if (typeof f.slug !== "string") continue;
+      const text = await readTextIfExists(path.join(ctx.cwd, "specs", f.slug, "discovery.md"));
+      if (!text || text.trim().length === 0) missing.push(`${f.slug} (${f.state})`);
+    }
+    if (missing.length > 0) {
+      return fail(
+        "feature-list",
+        `${missing.length} feature(s) past discovery without specs/<slug>/discovery.md`,
+        Date.now() - start,
+        missing.map((s) => `- ${s}`).join("\n"),
+      );
+    }
+  }
+
+  const inProgress = features.filter((f) => f.state === "in_progress").length;
   return pass(
     "feature-list",
-    `${features.length} feature(s), ${inProgress.length} in progress`,
-    ms,
+    `${features.length} feature(s), ${active.length} active, ${inProgress} in progress`,
+    Date.now() - start,
   );
 }
 

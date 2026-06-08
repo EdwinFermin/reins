@@ -103,7 +103,17 @@ const SDD: TemplateEntry[] = [
     template: "sdd/.claude/commands/approve-spec.md.eta",
     dest: ".claude/commands/approve-spec.md",
   },
+  {
+    id: "cmd-validate-discovery",
+    template: "sdd/.claude/commands/validate-discovery.md.eta",
+    dest: ".claude/commands/validate-discovery.md",
+  },
   { id: "docs-sdd", template: "sdd/docs/sdd-workflow.md.eta", dest: "docs/sdd-workflow.md" },
+  {
+    id: "spec-discovery",
+    template: "sdd/specs/_template/discovery.md.eta",
+    dest: "specs/_template/discovery.md",
+  },
   {
     id: "spec-requirements",
     template: "sdd/specs/_template/requirements.md.eta",
@@ -170,7 +180,15 @@ export function buildInitialFeatureList(): unknown {
     rules: {
       oneFeatureInProgress: true,
       requireTestsToClose: true,
-      validStates: ["pending", "spec_ready", "in_progress", "done", "blocked"],
+      validStates: [
+        "pending",
+        "analyzing",
+        "needs_clarification",
+        "spec_ready",
+        "in_progress",
+        "done",
+        "blocked",
+      ],
     },
     features: [],
   };

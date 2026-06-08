@@ -1,0 +1,13 @@
+---
+description: Validate a feature's discovery so spec authoring can begin (SDD).
+argument-hint: "<feature-slug>"
+allowed-tools: Read, Edit, Bash, Agent
+---
+
+A human is validating the discovery for `$ARGUMENTS` (currently `needs_clarification`).
+
+1. Confirm `specs/$ARGUMENTS/discovery.md` exists and that its **Open questions** are answered in the **Resolution** section. If anything is still open or contradictory, say exactly what is missing instead of proceeding.
+2. Once the intent is clear, launch the `spec_author` subagent to write `requirements.md`, `design.md`, and `tasks.md` grounded in the resolved discovery — never in the bare title.
+3. `spec_author` sets the feature to `spec_ready`. Then stop for the spec-approval gate (`/approve-spec $ARGUMENTS`).
+
+Do not let implementation begin here — this gate only turns validated analysis into an approvable spec.
