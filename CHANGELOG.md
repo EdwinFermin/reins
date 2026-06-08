@@ -4,6 +4,12 @@ All notable changes to Reins are documented here. This project adheres to
 [Semantic Versioning](https://semver.org/). The harness template version tracks
 the package version, so `reins update` migrates installed harnesses to it.
 
+## 0.1.2
+
+- Use a PNG logo served over an absolute URL so it renders on the npm package
+  page (npm blocks SVG and does not resolve relative image paths).
+- Add `repository`, `homepage`, and `bugs` metadata to package.json.
+
 ## 0.1.1
 
 - Add the Reins logo to the README header.

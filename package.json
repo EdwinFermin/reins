@@ -1,6 +1,6 @@
 {
   "name": "@fermin-dev/reins",
-  "version": "0.1.1",
+  "version": "0.1.2",
   "description": "Install and orchestrate a controlled multi-agent harness on top of an existing project, for Claude Code.",
   "keywords": [
     "claude",
@@ -15,6 +15,14 @@
   "type": "module",
   "license": "MIT",
   "author": "betta-tech",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/EdwinFermin/reins.git"
+  },
+  "homepage": "https://github.com/EdwinFermin/reins#readme",
+  "bugs": {
+    "url": "https://github.com/EdwinFermin/reins/issues"
+  },
   "publishConfig": {
     "access": "public"
   },

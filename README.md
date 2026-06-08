@@ -1,5 +1,5 @@
 <p align="center">
-  <img src="assets/reins-icon-dark.svg" alt="reins logo" width="120" height="120" />
+  <img src="https://raw.githubusercontent.com/EdwinFermin/reins/main/assets/reins-icon-dark.png" alt="reins logo" width="120" height="120" />
 </p>
 
 # reins
