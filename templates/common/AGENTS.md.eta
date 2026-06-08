@@ -19,7 +19,7 @@ This repository is the system. Documentation, configuration, living state, and t
 
 ## Workflow
 
-<% if (it.isSdd) { %>`pending` → **spec_author** writes spec → `spec_ready` → **human approval** → `in_progress` → **implementer** + **reviewer** → `done`.
+<% if (it.isSdd) { %>`pending` → **leader** writes `discovery.md` → `needs_clarification` → **human validates intent** → **spec_author** writes spec → `spec_ready` → **human approves** → `in_progress` → **implementer** + **reviewer** → `done`.
 <% } else { %>`pending` → `in_progress` → **implementer** writes code + tests → **reviewer** (+ **security-reviewer**) → `done`.
 <% } %>
 One feature `in_progress` at a time. Every result is written to `progress/`; replies to the leader are one-line references like `done -> progress/impl_<feature>.md`.

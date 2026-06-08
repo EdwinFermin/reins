@@ -1,4 +1,4 @@
-import { mkdtemp, writeFile } from "node:fs/promises";
+import { mkdir, mkdtemp, writeFile } from "node:fs/promises";
 import os from "node:os";
 import path from "node:path";
 import { describe, expect, it } from "vitest";
@@ -75,6 +75,63 @@ describe("runVerify — feature-list", () => {
     const config = makeConfig({});
     const report = await runVerify({ cwd, config, only: ["feature-list"] });
     expect(report.results[0]?.status).toBe("pass");
+  });
+});
+
+describe("runVerify — feature-list discovery gate (sdd)", () => {
+  it("fails when an sdd feature reaches spec_ready without a discovery.md", async () => {
+    const cwd = await tmp();
+    await writeFile(
+      path.join(cwd, "feature_list.json"),
+      JSON.stringify({ version: 1, features: [{ slug: "glass", state: "spec_ready" }] }),
+    );
+    const config = makeConfig({ preset: "sdd" });
+    const report = await runVerify({ cwd, config, only: ["feature-list"] });
+    expect(report.results[0]?.status).toBe("fail");
+  });
+
+  it("passes once the feature has a non-empty discovery.md", async () => {
+    const cwd = await tmp();
+    await writeFile(
+      path.join(cwd, "feature_list.json"),
+      JSON.stringify({ version: 1, features: [{ slug: "glass", state: "spec_ready" }] }),
+    );
+    await mkdir(path.join(cwd, "specs", "glass"), { recursive: true });
+    await writeFile(
+      path.join(cwd, "specs", "glass", "discovery.md"),
+      "# Discovery\nreal findings\n",
+    );
+    const config = makeConfig({ preset: "sdd" });
+    const report = await runVerify({ cwd, config, only: ["feature-list"] });
+    expect(report.results[0]?.status).toBe("pass");
+  });
+
+  it("does not require discovery under the lite preset", async () => {
+    const cwd = await tmp();
+    await writeFile(
+      path.join(cwd, "feature_list.json"),
+      JSON.stringify({ version: 1, features: [{ slug: "glass", state: "in_progress" }] }),
+    );
+    const config = makeConfig({ preset: "lite" });
+    const report = await runVerify({ cwd, config, only: ["feature-list"] });
+    expect(report.results[0]?.status).toBe("pass");
+  });
+
+  it("fails when two features occupy the active slot (analyzing + in_progress)", async () => {
+    const cwd = await tmp();
+    await writeFile(
+      path.join(cwd, "feature_list.json"),
+      JSON.stringify({
+        version: 1,
+        features: [
+          { slug: "a", state: "analyzing" },
+          { slug: "b", state: "in_progress" },
+        ],
+      }),
+    );
+    const config = makeConfig({ preset: "lite" });
+    const report = await runVerify({ cwd, config, only: ["feature-list"] });
+    expect(report.results[0]?.status).toBe("fail");
   });
 });
 

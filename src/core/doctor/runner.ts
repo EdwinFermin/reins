@@ -133,6 +133,7 @@ export async function runDoctor(cwd: string, cliVersion: string): Promise<Doctor
   if (cfg.preset === "sdd") {
     coreFiles.push(
       "docs/sdd-workflow.md",
+      "specs/_template/discovery.md",
       "specs/_template/requirements.md",
       "specs/_template/design.md",
       "specs/_template/tasks.md",

@@ -66,7 +66,7 @@ export async function getStatus(cwd: string): Promise<StatusReport> {
     counts[state] = (counts[state] ?? 0) + 1;
   }
 
-  const activeFeature = features.find((f) => f.state === "in_progress");
+  const activeFeature = features.find((f) => f.state === "in_progress" || f.state === "analyzing");
   const pending = features
     .filter((f) => f.state === "pending")
     .map((f) => String(f.slug))

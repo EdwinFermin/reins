@@ -10,7 +10,7 @@ This repository is managed by a **Reins** harness. In this repository you act **
 - **State lives on disk, not in chat.** Subagents write their results to files under `progress/` and reply with a one-line reference. The source of truth is the repository, not the conversation.
 - **One feature `in_progress` at a time**, tracked in `feature_list.json`.
 - **Verification is law.** Run `<%= it.verifyCmd %>` before ending a session; a failing required check means the work is not done. The `Stop` hook enforces this automatically.
-<% if (it.isSdd) { %>- **Spec-Driven (SDD).** No code is written without an approved spec. New features go `pending → spec_ready` (via `spec_author`) → **human approval** → `in_progress` (implementer + reviewer) → `done`. Each requirement must map to a test.
+<% if (it.isSdd) { %>- **Spec-Driven (SDD).** No plan without analysis, no code without an approved spec. Features go `pending → analyzing → needs_clarification` (the leader writes `specs/<feature>/discovery.md` and **stops for human validation of intent**) → `spec_ready` (via `spec_author`) → **human approval** → `in_progress` (implementer + reviewer) → `done`. Each requirement maps to a test.
 <% } else { %>- Features flow `pending → in_progress` (implementer + reviewer) → `done`. Each change ships with its test.
 <% } %>
 

@@ -1,19 +1,28 @@
 # Spec-Driven Development (SDD)
 
-No production code is written without an approved spec.
+No plan is drafted without analysis, and no production code without an approved spec.
+
+## States
+
+`pending → analyzing → needs_clarification → spec_ready → in_progress → done` (or `blocked`).
+Only one feature is **active** (`analyzing` or `in_progress`) at a time.
 
 ## Flow
 
-1. **Draft** — `spec_author` copies `specs/_template/` to `specs/<feature>/` and writes:
+1. **Discovery (leader)** — for a `pending` feature, the leader sets it `analyzing` and investigates the codebase (reads code, launches explorers), then writes `specs/<feature>/discovery.md`: findings, affected areas, approaches, and the **open questions** a human must answer. The feature becomes `needs_clarification` and work **stops**. A bare title is never enough to plan from.
+2. **Validate (human)** — a human answers the open questions; the leader records them in the discovery's **Resolution**. Use `/validate-discovery <feature>`.
+3. **Draft (spec_author)** — grounded in the validated discovery, `spec_author` writes:
    - `requirements.md` — `R1..Rn` in EARS notation ("WHEN/WHILE/IF … the system SHALL …").
    - `design.md` — files to touch, signatures, data shapes, and one rejected alternative.
-   - `tasks.md` — `T1..Tn` covering every requirement, with a `T → R → test` traceability table.
+   - `tasks.md` — `T1..Tn` covering every requirement, with a `T → R → test` table.
 
    The feature becomes `spec_ready`.
-2. **Approve (human)** — a human reads the three files and approves. Only then does the feature become `in_progress`. Use `/approve-spec <feature>`.
-3. **Implement** — `implementer` builds strictly to the spec, ticking off tasks and writing a test per requirement.
-4. **Review** — `reviewer` verifies traceability: every `R<n>` has a test, or the change is rejected.
+4. **Approve (human)** — a human reads the spec and approves; the feature becomes `in_progress`. Use `/approve-spec <feature>`.
+5. **Implement** — `implementer` builds strictly to the spec, ticking off tasks and writing a test per requirement.
+6. **Review** — `reviewer` verifies traceability: every `R<n>` has a test, or the change is rejected.
+
+`reins verify` enforces this: a feature in `needs_clarification`, `spec_ready`, or `in_progress` must have a `discovery.md`, and only one feature may be active at a time.
 
 ## Why
 
-The human gate sits between intent and code, so surprises are caught on paper, not in production. Traceability is the difference between "green" and "correct".
+Two human gates — one on **intent** (discovery) and one on **the plan** (the spec) — so misalignment is caught on paper, before a single line of code. Traceability is the difference between "green" and "correct".
