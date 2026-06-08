@@ -1,0 +1,26 @@
+# Tasks — <feature>
+
+> Discrete tasks that together cover every requirement. Check each off when done.
+
+## Implementation
+
+- [ ] T1 — <change> (covers: R1)
+- [ ] T2 — <change> (covers: R2)
+
+## Tests
+
+- [ ] T3 — <test name> (covers: R1)
+- [ ] T4 — <test name> (covers: R2, R3)
+
+## Close
+
+- [ ] T5 — `<%= it.verifyCmd %>` is green
+- [ ] T6 — traceability table written into `progress/impl_<feature>.md`
+
+## Traceability
+
+| Requirement | Task(s) | Test(s) |
+| --- | --- | --- |
+| R1 | T1 | T3 |
+| R2 | T2 | T4 |
+| R3 | T2 | T4 |

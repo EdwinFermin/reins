@@ -1,0 +1,23 @@
+# Security policy
+
+> Enforced by the `security-reviewer` agent and `<%= it.verifyCmd %> --only security`.
+
+## Secrets
+
+- No hard-coded credentials, API keys, tokens, or private keys. Use environment variables or a secrets manager.
+- Never write secrets to logs or stdout. Keep `.env` files out of version control.
+- The secret scanner runs on edits, on pre-commit, and in CI; any finding blocks.
+
+## Dependencies
+
+- Every new dependency must be necessary, reputable, and pinned.
+- The dependency audit blocks at severity `high` or above by default (tune in `reins.config.json` → `security.depsAudit.failOn`).
+
+## Input handling
+
+- Validate and bound all untrusted input before it reaches a shell, query, file path, or deserializer.
+- Fail closed: when in doubt, reject the input.
+
+## When to invoke the security-reviewer
+
+Any change touching authentication, input parsing, file/network IO, secrets, or dependencies.

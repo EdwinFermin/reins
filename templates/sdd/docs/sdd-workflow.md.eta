@@ -1,0 +1,19 @@
+# Spec-Driven Development (SDD)
+
+No production code is written without an approved spec.
+
+## Flow
+
+1. **Draft** — `spec_author` copies `specs/_template/` to `specs/<feature>/` and writes:
+   - `requirements.md` — `R1..Rn` in EARS notation ("WHEN/WHILE/IF … the system SHALL …").
+   - `design.md` — files to touch, signatures, data shapes, and one rejected alternative.
+   - `tasks.md` — `T1..Tn` covering every requirement, with a `T → R → test` traceability table.
+
+   The feature becomes `spec_ready`.
+2. **Approve (human)** — a human reads the three files and approves. Only then does the feature become `in_progress`. Use `/approve-spec <feature>`.
+3. **Implement** — `implementer` builds strictly to the spec, ticking off tasks and writing a test per requirement.
+4. **Review** — `reviewer` verifies traceability: every `R<n>` has a test, or the change is rejected.
+
+## Why
+
+The human gate sits between intent and code, so surprises are caught on paper, not in production. Traceability is the difference between "green" and "correct".

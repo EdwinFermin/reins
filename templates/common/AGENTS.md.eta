@@ -1,0 +1,36 @@
+# Agent map — <%= it.projectName %>
+
+> Installed and maintained by [Reins](https://www.npmjs.com/package/reins) (`<%= it.preset %>` preset, harness v<%= it.harnessVersion %>). This file is a **map**, not a rulebook — read what you need, when you need it.
+
+## The model
+
+This repository is the system. Documentation, configuration, living state, and traces all persist as versioned files. Multiple specialized agents collaborate with **disjoint powers** and write their results to disk, never relying on chat memory.
+
+## Roles (`.claude/agents/`)
+
+| Agent | Powers | Responsibility |
+| --- | --- | --- |
+| `leader` | Read, Grep, Bash, Agent | Orchestrates; never edits code. |
+| `implementer` | Read, Write, Edit, Bash | Implements one feature + its tests; self-verifies. |
+| `reviewer` | Read, Grep, Bash | Approves/rejects against docs + checkpoints. |
+| `security-reviewer` | Read, Grep, Bash | Audits secrets, input handling, dependencies. |
+<% if (it.isSdd) { %>| `spec_author` | Write to `specs/` only | Writes EARS requirements, design, tasks. |
+<% } %>
+
+## Workflow
+
+<% if (it.isSdd) { %>`pending` → **spec_author** writes spec → `spec_ready` → **human approval** → `in_progress` → **implementer** + **reviewer** → `done`.
+<% } else { %>`pending` → `in_progress` → **implementer** writes code + tests → **reviewer** (+ **security-reviewer**) → `done`.
+<% } %>
+One feature `in_progress` at a time. Every result is written to `progress/`; replies to the leader are one-line references like `done -> progress/impl_<feature>.md`.
+
+## Verification is law
+
+`<%= it.verifyCmd %>` runs the project's gate (lint, tests, e2e, security) cross-platform and returns non-zero when a required check fails. It is wired into Claude Code hooks (`.claude/settings.json`): tests run after edits, and the session is blocked from ending on a red tree. Run `reins doctor` to check the harness itself.
+
+## Session close checklist
+
+1. `<%= it.verifyCmd %>` is green.
+2. Finished feature is marked `done` in `feature_list.json`.
+3. Session summary moved from `progress/current.md` into `progress/history.md` (append-only).
+4. No stray `.tmp` files, debug prints, or unexplained TODOs left behind.

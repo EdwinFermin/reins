@@ -1,0 +1,9 @@
+# History
+
+Append-only log of sessions. Newest entries at the bottom. **Never edit past entries.**
+
+---
+
+## <%= it.date %> — Harness installed
+
+Reins `<%= it.preset %>` harness (v<%= it.harnessVersion %>) initialized for `<%= it.projectName %>`.

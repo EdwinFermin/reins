@@ -1,0 +1,3 @@
+#!/usr/bin/env sh
+# Reins pre-commit hook — runs the fast verification profile on staged changes.
+exec npx --yes reins verify --hook PreCommit --changed

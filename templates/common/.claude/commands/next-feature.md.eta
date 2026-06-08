@@ -1,0 +1,14 @@
+---
+description: Start work on the next pending feature using the harness flow.
+argument-hint: "[feature-slug]"
+allowed-tools: Read, Bash, Agent
+---
+
+Acting as the `leader`, begin work on the next feature. If a slug is given in `$ARGUMENTS`, use that feature; otherwise pick the top `pending` feature in `feature_list.json`.
+
+1. Run `<%= it.verifyCmd %>` to confirm a green starting state.
+<% if (it.isSdd) { %>2. If the feature has no approved spec, launch `spec_author` to draft it, then stop for human approval.
+3. Once approved, set it `in_progress`, launch `implementer`, then `reviewer` (and `security-reviewer` if the change touches auth, input, IO, secrets, or dependencies).
+<% } else { %>2. Set it `in_progress`, launch `implementer`, then `reviewer` (and `security-reviewer` if the change touches auth, input, IO, secrets, or dependencies).
+<% } %>
+Remember: you orchestrate, subagents write their results to `progress/`, and exactly one feature is `in_progress` at a time.

@@ -1,0 +1,14 @@
+# Checkpoints
+
+Objective criteria the `reviewer` walks before approving. Each maps to an executable check — run `<%= it.verifyCmd %>` and `reins doctor` to evaluate them mechanically.
+
+- **C1 — Harness intact.** All base files present (`.claude/agents/*`, `docs/*`, `feature_list.json`, `progress/`). → `reins doctor`
+- **C2 — Coherent state.** At most one feature `in_progress`; states are valid. → `<%= it.verifyCmd %> --only feature-list`
+- **C3 — Lint clean.** Code matches `docs/conventions.md`. → `<%= it.verifyCmd %> --only lint`
+- **C4 — Tests green.** Every changed behavior has a passing test. → `<%= it.verifyCmd %> --only unit`
+- **C5 — Security clean.** No leaked secrets; dependency audit passes the configured threshold. → `<%= it.verifyCmd %> --only security`
+<% if (it.isSdd) { %>- **C6 — Traceability.** Every requirement `R<n>` maps to a test. → `<%= it.verifyCmd %> --only traceability`
+- **C7 — Spec respected.** The implementation does what the approved spec says, no more.
+<% } %>- **C<%= it.isSdd ? 8 : 6 %> — Session closed well.** `progress/history.md` updated; no stray artifacts; `current.md` reset.
+
+A checkpoint that cannot be ticked blocks approval.

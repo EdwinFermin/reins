@@ -1,0 +1,20 @@
+# Verification
+
+> How we prove the project works. `<%= it.verifyCmd %>` runs these as one cross-platform gate (non-zero exit on failure) and is wired into Claude Code hooks.
+
+## Levels
+
+1. **Lint** — `<%= it.commands.lint || "(configure in reins.config.json)" %>`
+2. **Unit tests** — `<%= it.commands.test || "(configure in reins.config.json)" %>`
+<% if (it.commands.typecheck) { %>3. **Type check** — `<%= it.commands.typecheck %>`
+<% } %><% if (it.commands.e2e) { %>4. **End-to-end** — `<%= it.commands.e2e %>`
+<% } %>5. **Security** — dependency audit + secret scan (`<%= it.verifyCmd %> --only security`).
+6. **Feature list** — the state machine is coherent (at most one `in_progress`).
+<% if (it.isSdd) { %>7. **Traceability** — every requirement maps to at least one test.
+<% } %>
+
+## Rules
+
+- The required checks (see `reins.config.json` → `verify.required`) must pass before a feature is `done`.
+- The `Stop` hook runs `<%= it.verifyCmd %>` and blocks the session from ending on a red tree.
+- Never mark a feature `done` with a failing required check.

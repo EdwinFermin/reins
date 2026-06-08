@@ -1,0 +1,6 @@
+---
+description: Show the Reins harness status (active feature, queue, telemetry).
+allowed-tools: Bash
+---
+
+Run `npx reins status` and summarize: the active feature, the queue of `pending` features, the latest subagent reports under `progress/`, and the session's subagent/token telemetry if available.

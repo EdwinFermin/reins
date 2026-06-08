@@ -1,0 +1,18 @@
+# Architecture
+
+> The quality bar the `reviewer` enforces. Detected stack: `<%= it.language %>`<% if (it.frameworks.length) { %> (<%= it.frameworksText %>)<% } %>.
+
+## Principles
+
+- **Clear layers.** Keep IO, domain logic, and the interface (CLI/HTTP/UI) separate. Don't mix them in one function.
+- **Explicit errors.** Raise named errors; don't return `null`/`undefined` to signal failure.
+- **Few dependencies.** Prefer the standard library; justify every new dependency (the `security-reviewer` checks this).
+- **Determinism.** Same input, same output. Isolate side effects at the edges.
+
+## Anti-patterns
+
+- Business logic living in the UI/CLI layer.
+- Catch-all error handling that hides failures.
+- Reading or writing external state inside tight loops.
+
+Keep this document the source of truth for *how code should be shaped here*. If a rule isn't written here, it isn't a requirement — add it here first.

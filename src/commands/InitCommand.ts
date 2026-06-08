@@ -1,0 +1,178 @@
+import path from "node:path";
+import { Command, Option } from "clipanion";
+import { isCancel, select } from "@clack/prompts";
+import type { Preset } from "../core/config/schema";
+import { runInit, type RunInitResult } from "../core/init/run";
+import { REINS_VERSION } from "../index";
+
+/**
+ * `reins init` — install the harness into the current project.
+ *
+ * Detects the stack, scaffolds the harness idempotently (agents, hooks, docs,
+ * state) and writes `.reins/manifest.json`.
+ */
+export class InitCommand extends Command {
+  static override paths = [["init"]];
+
+  static override usage = Command.Usage({
+    category: "Setup",
+    description: "Install the Reins harness into the current project.",
+    details: `
+      Auto-detects the project stack, then scaffolds the multi-agent harness
+      (\`.claude/agents\`, hooks, \`docs/\`, \`progress/\`, \`feature_list.json\`,
+      \`reins.config.json\`) without overwriting your files, and records what it
+      generated in \`.reins/manifest.json\`.
+    `,
+    examples: [
+      ["Interactive install", "reins init"],
+      ["Non-interactive, SDD preset", "reins init --preset sdd --yes"],
+      ["Preview without writing", "reins init --dry-run"],
+    ],
+  });
+
+  preset = Option.String("--preset", { description: "Harness preset: lite | sdd" });
+  cwd = Option.String("--cwd", { description: "Run as if started in this directory" });
+  yes = Option.Boolean("--yes,-y", false, {
+    description: "Non-interactive; use detection + defaults",
+  });
+  dryRun = Option.Boolean("--dry-run", false, {
+    description: "Show the plan without writing anything",
+  });
+  ci = Option.Boolean("--ci", true, { description: "Write a CI workflow (use --no-ci to skip)" });
+  gitHook = Option.Boolean("--git-hook", true, {
+    description: "Install the pre-commit hook (use --no-git-hook to skip)",
+  });
+  force = Option.Boolean("--force", false, {
+    description: "Overwrite without backup (discouraged)",
+  });
+  json = Option.Boolean("--json", false, { description: "Machine-readable output" });
+
+  async execute(): Promise<number> {
+    const cwd = path.resolve(this.cwd ?? process.cwd());
+
+    if (this.preset != null && this.preset !== "lite" && this.preset !== "sdd") {
+      this.context.stderr.write(`Unknown preset "${this.preset}". Use "lite" or "sdd".\n`);
+      return 1;
+    }
+
+    let preset = this.preset as Preset | undefined;
+    if (!preset) {
+      const interactive = !this.yes && Boolean(process.stdout.isTTY) && !this.json;
+      if (interactive) {
+        const chosen = await promptPreset();
+        if (chosen == null) {
+          this.context.stderr.write("Cancelled.\n");
+          return 1;
+        }
+        preset = chosen;
+      } else {
+        preset = "lite";
+      }
+    }
+
+    const result = await runInit({
+      cwd,
+      preset,
+      harnessVersion: REINS_VERSION,
+      dryRun: this.dryRun,
+      force: this.force,
+      installGitHook: this.gitHook,
+      writeCi: this.ci,
+    });
+
+    if (this.json) {
+      this.context.stdout.write(
+        JSON.stringify(serialize(result, cwd, this.dryRun), null, 2) + "\n",
+      );
+    } else {
+      this.context.stdout.write(renderSummary(result, cwd, this.dryRun));
+    }
+    return 0;
+  }
+}
+
+async function promptPreset(): Promise<Preset | null> {
+  const choice = await select({
+    message: "Which harness preset?",
+    options: [
+      {
+        value: "sdd",
+        label: "sdd",
+        hint: "specs + human approval gate + traceability (recommended)",
+      },
+      { value: "lite", label: "lite", hint: "leader / implementer / reviewer + verification" },
+    ],
+    initialValue: "sdd",
+  });
+  if (isCancel(choice)) return null;
+  return choice as Preset;
+}
+
+function countActions(result: RunInitResult): Record<string, number> {
+  const counts: Record<string, number> = {};
+  for (const outcome of result.outcomes) {
+    counts[outcome.action] = (counts[outcome.action] ?? 0) + 1;
+  }
+  return counts;
+}
+
+function serialize(result: RunInitResult, cwd: string, dryRun: boolean): unknown {
+  return {
+    preset: result.preset,
+    cwd,
+    dryRun,
+    stack: {
+      language: result.profile.language,
+      packageManager: result.profile.packageManager ?? null,
+      frameworks: result.profile.frameworks,
+    },
+    gitHookInstalled: result.gitHookInstalled,
+    actions: countActions(result),
+    files: result.outcomes,
+  };
+}
+
+function renderSummary(result: RunInitResult, cwd: string, dryRun: boolean): string {
+  const lines: string[] = [];
+  const prefix = dryRun ? "[dry run] " : "";
+  const pm = result.profile.packageManager ? ` (${result.profile.packageManager})` : "";
+  const frameworks = result.profile.frameworks.length
+    ? result.profile.frameworks.join(", ")
+    : "none";
+
+  lines.push("");
+  lines.push(
+    `${prefix}Reins ${result.preset} harness ${dryRun ? "would be installed" : "installed"} in ${cwd}`,
+  );
+  lines.push(`  Stack: ${result.profile.language}${pm} · frameworks: ${frameworks}`);
+
+  const counts = countActions(result);
+  const summary = Object.entries(counts)
+    .map(([action, n]) => `${n} ${action}`)
+    .join(", ");
+  lines.push(`  Files: ${summary}`);
+
+  for (const outcome of result.outcomes) {
+    if (outcome.note) {
+      lines.push(`  • ${outcome.destRel}: ${outcome.note}`);
+    }
+  }
+  if (!dryRun && result.hasGit) {
+    lines.push(
+      `  Git hook: ${result.gitHookInstalled ? "installed (.git/hooks/pre-commit)" : "skipped (already present)"}`,
+    );
+  }
+
+  lines.push("");
+  lines.push("Next steps:");
+  lines.push("  • Open Claude Code — the agent will act as the `leader`.");
+  lines.push("  • reins doctor      check the harness is healthy");
+  lines.push("  • reins verify      run the verification gate");
+  if (result.preset === "sdd") {
+    lines.push("  • reins add-feature <slug> --with-spec   draft your first spec");
+  } else {
+    lines.push("  • reins add-feature <slug>               queue your first feature");
+  }
+  lines.push("");
+  return lines.join("\n");
+}
