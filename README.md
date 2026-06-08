@@ -1,4 +1,8 @@
-# reins 🐎
+<p align="center">
+  <img src="assets/reins-icon-dark.svg" alt="reins logo" width="120" height="120" />
+</p>
+
+# reins
 
 > Put the reins on your AI agent.
 
