@@ -4,7 +4,7 @@ argument-hint: "[feature-slug]"
 allowed-tools: Read, Bash, Agent
 ---
 
-Acting as the `leader`, begin work on the next feature. If a slug is given in `$ARGUMENTS`, use that feature; otherwise pick the top `pending` feature in `feature_list.json`.
+Acting as the `leader`, begin work on the next feature. If a slug is given in `$ARGUMENTS`, use that feature; otherwise pick the top `pending` feature in `feature_list.json` whose `dependsOn` are all `done` (run `reins status` to see the dependency-ordered queue).
 
 1. Run `<%= it.verifyCmd %>` to confirm a green starting state.
 <% if (it.isSdd) { %>2. **Discovery first.** If the feature is `pending`, set it `analyzing` and investigate the codebase yourself — read the relevant files, and launch explorers for anything non-trivial. Copy `specs/_template/discovery.md` to `specs/<feature>/discovery.md` and fill it: findings, affected areas, approaches, and the **open questions** a human must answer. Set the feature to `needs_clarification` and **stop** — present the open questions and wait. Never draft a spec from the bare title.

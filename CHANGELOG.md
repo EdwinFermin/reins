@@ -4,6 +4,27 @@ All notable changes to Reins are documented here. This project adheres to
 [Semantic Versioning](https://semver.org/). The harness template version tracks
 the package version, so `reins update` migrates installed harnesses to it.
 
+## 0.3.0
+
+### `/brainstorm` — epic-level decomposition
+
+- New **`/brainstorm <idea>`** command (both presets): the leader turns a rough
+  idea into a sequence of discrete features, writes the breakdown to
+  `progress/brainstorm_<epic>.md`, and **stops for human approval**. On approval
+  it registers each feature as `pending` via `reins add-feature` — without specs,
+  so every feature still earns its own discovery and approval. It only populates
+  the queue; it never skips a gate.
+
+### `dependsOn` is now enforced
+
+- `reins verify` (the `feature-list` check, required in both presets) rejects
+  dependency **cycles** and **dangling references**, and fails when a feature is
+  `in_progress` or `done` before all of its dependencies are `done`.
+- `reins status` lists the pending queue in **dependency order** (features whose
+  dependencies are all `done` first), and `/next-feature` picks the top pending
+  feature whose dependencies are satisfied. Existing feature lists (no
+  `dependsOn`) are unaffected.
+
 ## 0.2.0
 
 ### SDD — discovery phase before the spec

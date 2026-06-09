@@ -78,6 +78,46 @@ describe("runVerify — feature-list", () => {
   });
 });
 
+describe("runVerify — feature-list dependsOn enforcement", () => {
+  async function check(features: unknown[]): Promise<string> {
+    const cwd = await tmp();
+    await writeFile(path.join(cwd, "feature_list.json"), JSON.stringify({ version: 1, features }));
+    const report = await runVerify({ cwd, config: makeConfig({}), only: ["feature-list"] });
+    return report.results[0]?.status ?? "missing";
+  }
+
+  it("fails on a dependsOn that points at an unknown feature", async () => {
+    expect(await check([{ slug: "a", state: "pending", dependsOn: ["ghost"] }])).toBe("fail");
+  });
+
+  it("fails on a dependency cycle", async () => {
+    expect(
+      await check([
+        { slug: "a", state: "pending", dependsOn: ["b"] },
+        { slug: "b", state: "pending", dependsOn: ["a"] },
+      ]),
+    ).toBe("fail");
+  });
+
+  it("fails when a feature is in_progress before its dependency is done", async () => {
+    expect(
+      await check([
+        { slug: "a", state: "pending", dependsOn: [] },
+        { slug: "b", state: "in_progress", dependsOn: ["a"] },
+      ]),
+    ).toBe("fail");
+  });
+
+  it("passes once the dependency is done", async () => {
+    expect(
+      await check([
+        { slug: "a", state: "done", dependsOn: [] },
+        { slug: "b", state: "in_progress", dependsOn: ["a"] },
+      ]),
+    ).toBe("pass");
+  });
+});
+
 describe("runVerify — feature-list discovery gate (sdd)", () => {
   it("fails when an sdd feature reaches spec_ready without a discovery.md", async () => {
     const cwd = await tmp();

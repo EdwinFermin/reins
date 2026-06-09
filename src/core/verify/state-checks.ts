@@ -1,5 +1,6 @@
 import { readdir } from "node:fs/promises";
 import path from "node:path";
+import { findDepIssues, normalizeFeatures, prematureFeatures } from "../features/deps";
 import { readJsonIfExists, readTextIfExists } from "../fs/read";
 import { fail, pass, skip, type CheckContext, type CheckResult } from "./types";
 
@@ -76,6 +77,44 @@ export async function featureListCheck(ctx: CheckContext): Promise<CheckResult> 
         missing.map((s) => `- ${s}`).join("\n"),
       );
     }
+  }
+
+  // Dependencies (dependsOn): no dangling references, no cycles, and nothing may
+  // be in_progress/done before every dependency is done.
+  const nodes = normalizeFeatures(features);
+  const { dangling, cycles } = findDepIssues(nodes);
+  if (dangling.length > 0) {
+    return fail(
+      "feature-list",
+      `${dangling.length} dependsOn reference(s) point at unknown features`,
+      Date.now() - start,
+      dangling.map((d) => `- ${d.slug} depends on missing ${d.dep}`).join("\n"),
+    );
+  }
+  if (cycles.length > 0) {
+    return fail(
+      "feature-list",
+      `${cycles.length} dependency cycle(s) in feature_list.json`,
+      Date.now() - start,
+      cycles.map((c) => `- ${[...c, c[0]].join(" → ")}`).join("\n"),
+    );
+  }
+  const bySlug = new Map(nodes.map((f) => [f.slug, f]));
+  const premature = prematureFeatures(nodes);
+  if (premature.length > 0) {
+    return fail(
+      "feature-list",
+      `${premature.length} feature(s) started before their dependencies are done`,
+      Date.now() - start,
+      premature
+        .map(
+          (f) =>
+            `- ${f.slug} (${f.state}) waits on ${f.dependsOn
+              .filter((d) => bySlug.get(d)?.state !== "done")
+              .join(", ")}`,
+        )
+        .join("\n"),
+    );
   }
 
   const inProgress = features.filter((f) => f.state === "in_progress").length;

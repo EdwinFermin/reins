@@ -42,6 +42,11 @@ describe("reins init — sdd on a node project", () => {
     expect(leader).toContain("tools: Read, Glob, Grep, Bash, Agent");
     expect(await exists(path.join(cwd, ".claude/agents/spec_author.md"))).toBe(true);
 
+    // The brainstorm command is COMMON — present under sdd too.
+    const brainstorm = await readFile(path.join(cwd, ".claude/commands/brainstorm.md"), "utf8");
+    expect(brainstorm).toContain("$ARGUMENTS");
+    expect(brainstorm).toContain("reins add-feature");
+
     // settings.json valid + hooks + stack allowlist
     const settings = JSON.parse(await readFile(path.join(cwd, ".claude/settings.json"), "utf8"));
     expect(settings.hooks.Stop[0].hooks[0].command).toContain("reins verify --hook Stop");
@@ -87,6 +92,8 @@ describe("reins init — lite", () => {
     await runInit({ cwd, preset: "lite", harnessVersion: "9.9.9", installGitHook: false });
     expect(await exists(path.join(cwd, ".claude/agents/spec_author.md"))).toBe(false);
     expect(await exists(path.join(cwd, "specs/_template/requirements.md"))).toBe(false);
+    // COMMON commands are present in lite too.
+    expect(await exists(path.join(cwd, ".claude/commands/brainstorm.md"))).toBe(true);
 
     // Edit living state, re-run, confirm it is preserved (create-only).
     await writeFile(

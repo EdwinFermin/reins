@@ -46,6 +46,11 @@ const COMMON: TemplateEntry[] = [
     template: "common/.claude/commands/next-feature.md.eta",
     dest: ".claude/commands/next-feature.md",
   },
+  {
+    id: "cmd-brainstorm",
+    template: "common/.claude/commands/brainstorm.md.eta",
+    dest: ".claude/commands/brainstorm.md",
+  },
   { id: "claude-md", template: "common/CLAUDE.md.eta", dest: "CLAUDE.md", kind: "claude-md" },
   { id: "agents-md", template: "common/AGENTS.md.eta", dest: "AGENTS.md" },
   { id: "checkpoints", template: "common/CHECKPOINTS.md.eta", dest: "CHECKPOINTS.md" },

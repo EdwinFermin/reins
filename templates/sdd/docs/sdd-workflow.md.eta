@@ -9,6 +9,7 @@ Only one feature is **active** (`analyzing` or `in_progress`) at a time.
 
 ## Flow
 
+0. **Brainstorm (epic, optional)** — `/brainstorm <idea>` turns a rough idea into a set of discrete features. The leader proposes a breakdown (slugs, titles, `dependsOn`, order), writes it to `progress/brainstorm_<epic>.md`, and **stops for human approval**. On approval it registers each feature as `pending` via `reins add-feature` (no specs yet) — so every feature still earns its own discovery and approval below. This only populates the queue; it never skips a gate.
 1. **Discovery (leader)** — for a `pending` feature, the leader sets it `analyzing` and investigates the codebase (reads code, launches explorers), then writes `specs/<feature>/discovery.md`: findings, affected areas, approaches, and the **open questions** a human must answer. The feature becomes `needs_clarification` and work **stops**. A bare title is never enough to plan from.
 2. **Validate (human)** — a human answers the open questions; the leader records them in the discovery's **Resolution**. Use `/validate-discovery <feature>`.
 3. **Draft (spec_author)** — grounded in the validated discovery, `spec_author` writes:
@@ -21,7 +22,7 @@ Only one feature is **active** (`analyzing` or `in_progress`) at a time.
 5. **Implement** — `implementer` builds strictly to the spec, ticking off tasks and writing a test per requirement.
 6. **Review** — `reviewer` verifies traceability: every `R<n>` has a test, or the change is rejected.
 
-`reins verify` enforces this: a feature in `needs_clarification`, `spec_ready`, or `in_progress` must have a `discovery.md`, and only one feature may be active at a time.
+`reins verify` enforces this: a feature in `needs_clarification`, `spec_ready`, or `in_progress` must have a `discovery.md`, only one feature may be active at a time, and `dependsOn` is honored — no cycles, no dangling references, and a feature cannot be `in_progress` or `done` until every dependency is `done`.
 
 ## Why
 

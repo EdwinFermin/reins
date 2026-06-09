@@ -1,0 +1,46 @@
+---
+description: Decompose a rough idea into a sequence of discrete features (epic-level brainstorm).
+argument-hint: "<your idea>"
+allowed-tools: Read, Write, Bash, Agent
+---
+
+Acting as the `leader`, help the human turn a rough idea into a sequence of small, shippable features. The idea is in `$ARGUMENTS` — if it is empty, ask the human to describe what they want to build before going further. You are **planning only**: you do not write product code here, and you do not touch `feature_list.json` until the human approves.
+
+1. **Understand the idea.** Read `AGENTS.md` and skim the relevant parts of the codebase. Ask the human any clarifying questions you need. For a large or unfamiliar area, launch `Explore` subagents so the breakdown is grounded in what actually exists — don't guess the architecture.
+
+2. **Decompose.** Break the idea into discrete features, each small enough to flow through the harness one at a time. Choose an `<epic-slug>` for the whole idea and a `slug` for each feature — all matching `^[a-z0-9][a-z0-9-]*$`. For every feature capture a one-line title, a one-line rationale, its `dependsOn` (other slugs in this batch), and where it sits in the recommended order.
+
+3. **Write the breakdown to disk** at `progress/brainstorm_<epic-slug>.md` *before* you stop, so the proposal survives even if the conversation is later compacted. Use this shape:
+
+   ```
+   # Brainstorm — <epic-slug>
+
+   ## Idea
+   <the human's idea, as you understand it>
+
+   ## Proposed features
+   | # | slug | title | depends on | why |
+   | - | ---- | ----- | ---------- | --- |
+   | 1 | <slug> | <title> | — | <rationale> |
+   | 2 | <slug> | <title> | <slug> | <rationale> |
+
+   ## Open questions
+   - <anything the human still needs to decide>
+
+   ## Resolution
+   <filled in after approval: the features actually registered>
+   ```
+
+4. **Present the breakdown and stop.** Show the human the proposed features and the order, and **wait for their approval in chat**. If they want changes, revise the list and the file. Register nothing yet.
+
+5. **On approval, register the features** as `pending`, in dependency-first order (a feature's dependencies before the feature itself), by running for each one:
+
+   ```
+   reins add-feature <slug> --title "<title>" --depends-on <a,b> --json
+   ```
+
+   Do **not** pass `--with-spec` — each feature must still earn its own discovery. The command dedupes by slug, so re-running is safe; report which features were added and which were skipped, and record the final list in the **Resolution** section of `progress/brainstorm_<epic-slug>.md`.
+
+6. **Close the loop.** Run `<%= it.verifyCmd %>` to confirm a green tree, then tell the human to start work with `/next-feature`.<% if (it.isSdd) { %> Each feature will go through discovery → `/validate-discovery` → spec → `/approve-spec` → implement, one at a time.<% } else { %> Each feature will be implemented (then reviewed) directly, one at a time.<% } %>
+
+Remember: brainstorm only ever creates `pending` features — it never sets a feature `analyzing` or `in_progress`, and it never skips discovery.

@@ -50,7 +50,7 @@ guard rails. Reins makes the repository itself the control surface:
 ```
 .claude/
   agents/            leader, implementer, reviewer, security-reviewer (+ spec_author for sdd)
-  commands/          reins-verify, reins-status, next-feature (+ new-spec, approve-spec for sdd)
+  commands/          reins-verify, reins-status, next-feature, brainstorm (+ new-spec, approve-spec, validate-discovery for sdd)
   settings.json      hooks (verify on edit/stop, telemetry on SubagentStop) + permission allowlist
 CLAUDE.md            root instructions; imports @AGENTS.md
 AGENTS.md            navigation map of the harness
@@ -138,6 +138,12 @@ pending ──▶ (sdd: spec_author → spec_ready → human approval) ──▶
 The `leader` orchestrates; subagents write results to `progress/` and reply with a
 one-line reference; `reins verify` gates every step; exactly one feature is
 `in_progress` at a time.
+
+Have a bigger idea? `/brainstorm <idea>` decomposes it into several features,
+waits for your approval, then queues them as `pending` so you can work them one by
+one. The queue honors `dependsOn`: `reins verify` rejects cycles and dangling
+references and won't let a feature go `in_progress` before its dependencies are
+`done`, and `reins status` lists the queue in dependency order.
 
 ## Configuration
 

@@ -19,6 +19,8 @@ This repository is the system. Documentation, configuration, living state, and t
 
 ## Workflow
 
+**Epic (optional):** `/brainstorm <idea>` decomposes a rough idea into several features; after the human approves the breakdown it queues them as `pending` (honoring `dependsOn`). Then each feature runs the per-feature flow below, one at a time.
+
 <% if (it.isSdd) { %>`pending` → **leader** writes `discovery.md` → `needs_clarification` → **human validates intent** → **spec_author** writes spec → `spec_ready` → **human approves** → `in_progress` → **implementer** + **reviewer** → `done`.
 <% } else { %>`pending` → `in_progress` → **implementer** writes code + tests → **reviewer** (+ **security-reviewer**) → `done`.
 <% } %>
