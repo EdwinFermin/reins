@@ -1,6 +1,6 @@
 # Agent map — <%= it.projectName %>
 
-> Installed and maintained by [Reins](https://www.npmjs.com/package/reins) (`<%= it.preset %>` preset, harness v<%= it.harnessVersion %>). This file is a **map**, not a rulebook — read what you need, when you need it.
+> Installed and maintained by [Reins](https://www.npmjs.com/package/@fermin-dev/reins) (`<%= it.preset %>` preset, harness v<%= it.harnessVersion %>). This file is a **map**, not a rulebook — read what you need, when you need it.
 
 ## The model
 

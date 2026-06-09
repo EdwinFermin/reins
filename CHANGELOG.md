@@ -25,6 +25,11 @@ the package version, so `reins update` migrates installed harnesses to it.
   feature whose dependencies are satisfied. Existing feature lists (no
   `dependsOn`) are unaffected.
 
+### Fixes
+
+- The generated `AGENTS.md` now links to the correct npm page
+  (`@fermin-dev/reins`) instead of a non-existent unscoped `reins` package.
+
 ## 0.2.0
 
 ### SDD — discovery phase before the spec
