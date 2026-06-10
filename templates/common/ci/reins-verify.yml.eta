@@ -19,4 +19,4 @@ jobs:
 <% } else { %>      - run: pip install -r requirements.txt || true
 <% } %><% } else { %>      - run: npm ci || npm install
 <% } %>      - name: Reins verification gate
-        run: npx --yes reins verify --hook CI
+        run: npx --yes @fermin-dev/reins@<%= it.harnessVersion %> verify --hook CI
