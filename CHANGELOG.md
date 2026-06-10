@@ -4,6 +4,16 @@ All notable changes to Reins are documented here. This project adheres to
 [Semantic Versioning](https://semver.org/). The harness template version tracks
 the package version, so `reins update` migrates installed harnesses to it.
 
+## 0.3.1
+
+### Fixes
+
+- The generated CI workflow (`reins-verify.yml`) now invokes the CLI by its
+  scoped npm name, pinned to the harness version
+  (`npx --yes @fermin-dev/reins@<version> verify --hook CI`). The previous
+  unscoped `npx --yes reins` 404'd on the npm registry, failing the gate in CI.
+  Existing harnesses pick this up via `reins update`.
+
 ## 0.3.0
 
 ### `/brainstorm` — epic-level decomposition
