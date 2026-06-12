@@ -46,6 +46,15 @@ describe("reins init — sdd on a node project", () => {
     const brainstorm = await readFile(path.join(cwd, ".claude/commands/brainstorm.md"), "utf8");
     expect(brainstorm).toContain("$ARGUMENTS");
     expect(brainstorm).toContain("reins add-feature");
+    // Under sdd, brainstorm carries every feature to an approved spec.
+    expect(brainstorm).toContain("Spec pipeline");
+    expect(brainstorm).toContain("`approved`");
+    expect(brainstorm).toContain("in English");
+
+    // approve-spec now targets `approved`, not `in_progress`.
+    const approveSpec = await readFile(path.join(cwd, ".claude/commands/approve-spec.md"), "utf8");
+    expect(approveSpec).toContain("`approved`");
+    expect(approveSpec).not.toContain("in_progress");
 
     // settings.json valid + hooks + stack allowlist
     const settings = JSON.parse(await readFile(path.join(cwd, ".claude/settings.json"), "utf8"));
@@ -68,7 +77,8 @@ describe("reins init — sdd on a node project", () => {
     expect(claude).toContain(">>> reins >>>");
 
     // Living state + specs + manifest
-    expect(await exists(path.join(cwd, "feature_list.json"))).toBe(true);
+    const featureList = JSON.parse(await readFile(path.join(cwd, "feature_list.json"), "utf8"));
+    expect(featureList.rules.validStates).toContain("approved");
     expect(await exists(path.join(cwd, "progress/history.md"))).toBe(true);
     expect(await exists(path.join(cwd, "specs/_template/requirements.md"))).toBe(true);
     const manifest = JSON.parse(await readFile(path.join(cwd, ".reins/manifest.json"), "utf8"));

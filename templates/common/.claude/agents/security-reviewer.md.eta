@@ -24,3 +24,4 @@ Reply to the leader with one line: `SECURITY_OK -> progress/review_<feature>.md`
 - Never approve when the dependency audit or secret scan fails.
 - Prefer false positives to false negatives: when unsure, flag it and explain.
 - Never edit code; recommend the fix instead.
+- Write your `progress/` reports in English, regardless of the conversation language.

@@ -6,8 +6,15 @@
  * checks) and `reins status` (dependency-ordered queue) honor it from one place.
  */
 
-/** States whose dependencies must all be `done` before the feature may hold them. */
+/**
+ * States whose dependencies must all be `done` before the feature may hold them.
+ * `approved` is deliberately NOT gated: a spec may be approved long before its
+ * dependencies are implemented — only starting work (`in_progress`) is gated.
+ */
 export const DEPENDENCY_GATED_STATES = new Set(["in_progress", "done"]);
+
+/** States that sit in the work queue, waiting to be picked up by `/next-feature`. */
+export const QUEUE_STATES = new Set(["pending", "approved"]);
 
 export interface FeatureNode {
   slug: string;
@@ -117,27 +124,34 @@ export function prematureFeatures(features: FeatureNode[]): FeatureNode[] {
 }
 
 /**
- * Pending slugs in a stable topological order: a feature appears after any
- * pending feature it depends on, with deps already `done` treated as satisfied.
- * Input order breaks ties; a cycle falls back to input order to keep progressing.
+ * Queued slugs (`pending`/`approved`) in a stable topological order: a feature
+ * appears after any queued feature it depends on, with deps already `done`
+ * treated as satisfied. `approved` features whose dependencies are all `done`
+ * are ready to implement, so they lead the queue. Input order breaks ties; a
+ * cycle falls back to input order to keep progressing.
  */
-export function orderPending(features: FeatureNode[]): string[] {
+export function orderQueue(features: FeatureNode[]): string[] {
   const bySlug = new Map(features.map((f) => [f.slug, f]));
-  const pending = features.filter((f) => f.state === "pending");
-  const pendingSlugs = new Set(pending.map((f) => f.slug));
+  const queued = features.filter((f) => QUEUE_STATES.has(f.state));
+  const queuedSlugs = new Set(queued.map((f) => f.slug));
 
   const unmet = new Map<string, Set<string>>();
-  for (const f of pending) {
+  for (const f of queued) {
     unmet.set(
       f.slug,
-      new Set(f.dependsOn.filter((d) => pendingSlugs.has(d) && bySlug.get(d)?.state !== "done")),
+      new Set(f.dependsOn.filter((d) => queuedSlugs.has(d) && bySlug.get(d)?.state !== "done")),
     );
   }
 
   const order: string[] = [];
-  const remaining = pending.map((f) => f.slug);
+  const remaining = queued.map((f) => f.slug);
   while (remaining.length > 0) {
-    const idx = remaining.findIndex((slug) => (unmet.get(slug)?.size ?? 0) === 0);
+    const isUnblocked = (slug: string): boolean => (unmet.get(slug)?.size ?? 0) === 0;
+    const readyApproved = remaining.findIndex((slug) => {
+      const f = bySlug.get(slug);
+      return isUnblocked(slug) && f?.state === "approved" && dependenciesDone(f, bySlug);
+    });
+    const idx = readyApproved !== -1 ? readyApproved : remaining.findIndex(isUnblocked);
     const [slug] = remaining.splice(idx === -1 ? 0 : idx, 1);
     order.push(slug!);
     for (const deps of unmet.values()) deps.delete(slug!);

@@ -19,12 +19,14 @@ This repository is the system. Documentation, configuration, living state, and t
 
 ## Workflow
 
-**Epic (optional):** `/brainstorm <idea>` decomposes a rough idea into several features; after the human approves the breakdown it queues them as `pending` (honoring `dependsOn`). Then each feature runs the per-feature flow below, one at a time.
+**Epic (optional):** `/brainstorm <idea>` decomposes a rough idea into several features; after the human approves the breakdown it queues them as `pending` (honoring `dependsOn`).<% if (it.isSdd) { %> It then walks **each feature** through discovery → open questions → spec → chat approval, ending with every feature `approved` — so implementation runs gate-free via `/next-feature`, one feature per invocation.<% } else { %> Then each feature runs the per-feature flow below, one at a time.<% } %>
 
-<% if (it.isSdd) { %>`pending` → **leader** writes `discovery.md` → `needs_clarification` → **human validates intent** → **spec_author** writes spec → `spec_ready` → **human approves** → `in_progress` → **implementer** + **reviewer** → `done`.
+<% if (it.isSdd) { %>`pending` → **leader** writes `discovery.md` → `needs_clarification` → **human validates intent** → **spec_author** writes spec → `spec_ready` → **human approves** → `approved` → `/next-feature` → `in_progress` → **implementer** + **reviewer** → `done`.
 <% } else { %>`pending` → `in_progress` → **implementer** writes code + tests → **reviewer** (+ **security-reviewer**) → `done`.
 <% } %>
 One feature `in_progress` at a time. Every result is written to `progress/`; replies to the leader are one-line references like `done -> progress/impl_<feature>.md`.
+
+**All artifacts are written in English.** Chat can happen in any language; files written to disk (`specs/`, `progress/`, docs) are always English.
 
 ## Verification is law
 

@@ -2,7 +2,7 @@ import { describe, expect, it } from "vitest";
 import {
   findDepIssues,
   normalizeFeatures,
-  orderPending,
+  orderQueue,
   prematureFeatures,
 } from "../../src/core/features/deps";
 
@@ -79,15 +79,23 @@ describe("prematureFeatures", () => {
     ]);
     expect(prematureFeatures(nodes)).toEqual([]);
   });
+
+  it("ignores an approved feature whose dependency is not done", () => {
+    const nodes = normalizeFeatures([
+      { slug: "a", state: "pending", dependsOn: [] },
+      { slug: "b", state: "approved", dependsOn: ["a"] },
+    ]);
+    expect(prematureFeatures(nodes)).toEqual([]);
+  });
 });
 
-describe("orderPending", () => {
+describe("orderQueue", () => {
   it("orders a pending dependency before its dependent", () => {
     const nodes = normalizeFeatures([
       { slug: "b", state: "pending", dependsOn: ["a"] },
       { slug: "a", state: "pending", dependsOn: [] },
     ]);
-    expect(orderPending(nodes)).toEqual(["a", "b"]);
+    expect(orderQueue(nodes)).toEqual(["a", "b"]);
   });
 
   it("puts features with all deps done ahead of blocked ones", () => {
@@ -97,7 +105,7 @@ describe("orderPending", () => {
       { slug: "ready", state: "pending", dependsOn: ["finished"] },
       { slug: "finished", state: "done", dependsOn: [] },
     ]);
-    const order = orderPending(nodes);
+    const order = orderQueue(nodes);
     // `ready` (dep done) and `pendingDep` (no deps) are unblocked; `blocked`
     // depends on `pendingDep`, so it must come after it.
     expect(order.indexOf("pendingDep")).toBeLessThan(order.indexOf("blocked"));
@@ -109,6 +117,31 @@ describe("orderPending", () => {
       { slug: "a", state: "pending", dependsOn: ["b"] },
       { slug: "b", state: "pending", dependsOn: ["a"] },
     ]);
-    expect(orderPending(nodes).sort()).toEqual(["a", "b"]);
+    expect(orderQueue(nodes).sort()).toEqual(["a", "b"]);
+  });
+
+  it("includes approved features in the queue", () => {
+    const nodes = normalizeFeatures([
+      { slug: "a", state: "approved", dependsOn: [] },
+      { slug: "b", state: "pending", dependsOn: [] },
+    ]);
+    expect(orderQueue(nodes).sort()).toEqual(["a", "b"]);
+  });
+
+  it("puts an approved feature with deps done at the front", () => {
+    const nodes = normalizeFeatures([
+      { slug: "p", state: "pending", dependsOn: [] },
+      { slug: "ap", state: "approved", dependsOn: ["d"] },
+      { slug: "d", state: "done", dependsOn: [] },
+    ]);
+    expect(orderQueue(nodes)[0]).toBe("ap");
+  });
+
+  it("does not prefer an approved feature whose deps are not done", () => {
+    const nodes = normalizeFeatures([
+      { slug: "p", state: "pending", dependsOn: [] },
+      { slug: "ap", state: "approved", dependsOn: ["p"] },
+    ]);
+    expect(orderQueue(nodes)).toEqual(["p", "ap"]);
   });
 });

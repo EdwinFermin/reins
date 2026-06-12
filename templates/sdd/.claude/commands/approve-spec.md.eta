@@ -1,9 +1,11 @@
 ---
-description: Approve a spec_ready feature so implementation can begin.
+description: Approve a spec_ready feature; marks it `approved` so /next-feature can implement it.
 argument-hint: "<feature-slug>"
 allowed-tools: Read, Edit, Bash
 ---
 
-A human is approving the spec for `$ARGUMENTS`. Confirm that `specs/$ARGUMENTS/` contains `requirements.md`, `design.md`, and `tasks.md`, then mark the feature `approved` and set it `in_progress` in `feature_list.json` so the `implementer` can start.
+A human is approving the spec for `$ARGUMENTS`. Confirm that `specs/$ARGUMENTS/` contains `requirements.md`, `design.md`, and `tasks.md`, then set the feature's state to `approved` in `feature_list.json`.
+
+Do not start implementation here — `/next-feature` picks up `approved` features and implements them without further questions or approvals.
 
 If the spec is incomplete or ambiguous, say exactly what is missing instead of approving.

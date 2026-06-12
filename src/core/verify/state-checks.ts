@@ -9,6 +9,7 @@ const VALID_STATES = new Set([
   "analyzing",
   "needs_clarification",
   "spec_ready",
+  "approved",
   "in_progress",
   "done",
   "blocked",
@@ -18,7 +19,17 @@ const VALID_STATES = new Set([
 const ACTIVE_STATES = new Set(["analyzing", "in_progress"]);
 
 /** SDD states that must already have a recorded, human-validated discovery. */
-const REQUIRES_DISCOVERY = new Set(["needs_clarification", "spec_ready", "in_progress"]);
+const REQUIRES_DISCOVERY = new Set([
+  "needs_clarification",
+  "spec_ready",
+  "approved",
+  "in_progress",
+]);
+
+/** SDD states that must already have a complete, human-approved spec on disk. */
+const REQUIRES_SPEC = new Set(["approved"]);
+
+const SPEC_FILES = ["requirements.md", "design.md", "tasks.md"];
 
 interface FeatureListShape {
   features?: { slug?: string; state?: string }[];
@@ -26,7 +37,8 @@ interface FeatureListShape {
 
 /**
  * Validate feature_list.json: present, parseable, valid states, ≤1 active
- * (analyzing/in_progress), and — for SDD — a discovery.md before the spec pipeline.
+ * (analyzing/in_progress), and — for SDD — a discovery.md before the spec
+ * pipeline plus a complete spec (requirements/design/tasks) behind `approved`.
  */
 export async function featureListCheck(ctx: CheckContext): Promise<CheckResult> {
   const start = Date.now();
@@ -75,6 +87,26 @@ export async function featureListCheck(ctx: CheckContext): Promise<CheckResult> 
         `${missing.length} feature(s) past discovery without specs/<slug>/discovery.md`,
         Date.now() - start,
         missing.map((s) => `- ${s}`).join("\n"),
+      );
+    }
+
+    // An `approved` feature means its spec was human-approved — the three spec
+    // files must exist on disk.
+    const incompleteSpecs: string[] = [];
+    for (const f of features) {
+      if (typeof f.state !== "string" || !REQUIRES_SPEC.has(f.state)) continue;
+      if (typeof f.slug !== "string") continue;
+      for (const file of SPEC_FILES) {
+        const text = await readTextIfExists(path.join(ctx.cwd, "specs", f.slug, file));
+        if (!text || text.trim().length === 0) incompleteSpecs.push(`${f.slug} (missing ${file})`);
+      }
+    }
+    if (incompleteSpecs.length > 0) {
+      return fail(
+        "feature-list",
+        `${incompleteSpecs.length} approved feature(s) without a complete spec (requirements/design/tasks)`,
+        Date.now() - start,
+        incompleteSpecs.map((s) => `- ${s}`).join("\n"),
       );
     }
   }

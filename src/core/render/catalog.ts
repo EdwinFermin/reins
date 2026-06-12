@@ -190,6 +190,7 @@ export function buildInitialFeatureList(): unknown {
         "analyzing",
         "needs_clarification",
         "spec_ready",
+        "approved",
         "in_progress",
         "done",
         "blocked",

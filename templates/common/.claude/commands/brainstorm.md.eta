@@ -1,7 +1,7 @@
 ---
-description: Decompose a rough idea into a sequence of discrete features (epic-level brainstorm).
+description: Decompose a rough idea into a sequence of discrete features<% if (it.isSdd) { %> and walk every feature to an approved spec<% } %> (epic-level brainstorm).
 argument-hint: "<your idea>"
-allowed-tools: Read, Write, Bash, Agent
+allowed-tools: Read, Write, Edit, Bash, Agent
 ---
 
 Acting as the `leader`, help the human turn a rough idea into a sequence of small, shippable features. The idea is in `$ARGUMENTS` — if it is empty, ask the human to describe what they want to build before going further. You are **planning only**: you do not write product code here, and you do not touch `feature_list.json` until the human approves.
@@ -39,8 +39,23 @@ Acting as the `leader`, help the human turn a rough idea into a sequence of smal
    reins add-feature <slug> --title "<title>" --depends-on <a,b> --json
    ```
 
-   Do **not** pass `--with-spec` — each feature must still earn its own discovery. The command dedupes by slug, so re-running is safe; report which features were added and which were skipped, and record the final list in the **Resolution** section of `progress/brainstorm_<epic-slug>.md`.
+   Do **not** pass `--with-spec`. The command dedupes by slug, so re-running is safe; report which features were added and which were skipped.
+<% if (it.isSdd) { %>
+6. **Spec pipeline — run it now, feature by feature.** This is where the human settles every detail, so that implementation later needs **no further questions or approvals**. Process the registered features **in dependency order, strictly one at a time** — a feature must reach `approved` before the next one leaves `pending` (`verify` allows only one `analyzing`). For each feature:
 
-6. **Close the loop.** Run `<%= it.verifyCmd %>` to confirm a green tree, then tell the human to start work with `/next-feature`.<% if (it.isSdd) { %> Each feature will go through discovery → `/validate-discovery` → spec → `/approve-spec` → implement, one at a time.<% } else { %> Each feature will be implemented (then reviewed) directly, one at a time.<% } %>
+   1. Set it `analyzing` in `feature_list.json`. Investigate the codebase yourself — read the relevant files, launch explorers for anything non-trivial. Copy `specs/_template/discovery.md` to `specs/<slug>/discovery.md` and fill it: findings, affected areas, approaches, and the **open questions** the human must answer. Set the feature `needs_clarification`.
+   2. Present **that feature's open questions in chat** and wait for the human's answers. Record the answers in the discovery's **Resolution** section.
+   3. Launch `spec_author` to write `requirements.md`, `design.md`, and `tasks.md` grounded in the resolved discovery — never in the bare title. It sets the feature `spec_ready`.
+   4. Present a short summary of the spec in chat and ask for approval. On approval, set the feature `approved`. If the human requests changes, revise the discovery/spec and re-present — never advance an unapproved feature.
+   5. Move on to the next feature.
 
-Remember: brainstorm only ever creates `pending` features — it never sets a feature `analyzing` or `in_progress`, and it never skips discovery.
+   If this loop is interrupted, resume each feature from its current state (`analyzing`/`needs_clarification` → finish the Q&A; `spec_ready` → present for approval), or use `/validate-discovery <feature>` and `/approve-spec <feature>` individually.
+
+7. **Close the loop.** Record the final feature list in the **Resolution** section of `progress/brainstorm_<epic-slug>.md`, run `<%= it.verifyCmd %>` to confirm a green tree, then tell the human: every feature is `approved` — from here, `/next-feature` implements them one at a time with **no further questions or approvals**.
+
+Remember: brainstorm registers features and carries each one to `approved` — it never sets a feature `in_progress`, and all human questioning belongs here, not during implementation. Write every file you save (`progress/brainstorm_*.md`, discoveries, specs) in English, even if this conversation is in another language.
+<% } else { %>
+6. **Close the loop.** Record the final feature list in the **Resolution** section of `progress/brainstorm_<epic-slug>.md`, run `<%= it.verifyCmd %>` to confirm a green tree, then tell the human to start work with `/next-feature`. Each feature will be implemented (then reviewed) directly, one at a time.
+
+Remember: brainstorm only ever creates `pending` features — it never sets a feature `in_progress`. Write every file you save (`progress/brainstorm_*.md` and any other artifact) in English, even if this conversation is in another language.
+<% } %>

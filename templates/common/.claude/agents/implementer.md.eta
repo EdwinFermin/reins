@@ -23,5 +23,6 @@ A single line: `done -> progress/impl_<feature>.md` or `blocked -> progress/curr
 ## Hard rules
 
 - One feature per session. Stay inside the feature's scope.
+- Write your `progress/` reports, code comments, and docs in English, regardless of the conversation language.
 - If a tool fails unexpectedly, do not improvise a workaround — record it in `progress/current.md` and end the session.
 - Never weaken or delete a test to make `<%= it.verifyCmd %>` pass.

@@ -116,6 +116,24 @@ describe("runVerify — feature-list dependsOn enforcement", () => {
       ]),
     ).toBe("pass");
   });
+
+  it("accepts approved as a valid, non-active state", async () => {
+    expect(
+      await check([
+        { slug: "a", state: "approved", dependsOn: [] },
+        { slug: "b", state: "analyzing", dependsOn: [] },
+      ]),
+    ).toBe("pass");
+  });
+
+  it("allows an approved feature whose dependency is not done (not premature)", async () => {
+    expect(
+      await check([
+        { slug: "a", state: "pending", dependsOn: [] },
+        { slug: "b", state: "approved", dependsOn: ["a"] },
+      ]),
+    ).toBe("pass");
+  });
 });
 
 describe("runVerify — feature-list discovery gate (sdd)", () => {
@@ -157,6 +175,17 @@ describe("runVerify — feature-list discovery gate (sdd)", () => {
     expect(report.results[0]?.status).toBe("pass");
   });
 
+  it("fails when an approved sdd feature has no discovery.md", async () => {
+    const cwd = await tmp();
+    await writeFile(
+      path.join(cwd, "feature_list.json"),
+      JSON.stringify({ version: 1, features: [{ slug: "glass", state: "approved" }] }),
+    );
+    const config = makeConfig({ preset: "sdd" });
+    const report = await runVerify({ cwd, config, only: ["feature-list"] });
+    expect(report.results[0]?.status).toBe("fail");
+  });
+
   it("fails when two features occupy the active slot (analyzing + in_progress)", async () => {
     const cwd = await tmp();
     await writeFile(
@@ -172,6 +201,56 @@ describe("runVerify — feature-list discovery gate (sdd)", () => {
     const config = makeConfig({ preset: "lite" });
     const report = await runVerify({ cwd, config, only: ["feature-list"] });
     expect(report.results[0]?.status).toBe("fail");
+  });
+});
+
+describe("runVerify — feature-list approved-spec gate (sdd)", () => {
+  async function setup(specFiles: string[]): Promise<string> {
+    const cwd = await tmp();
+    await writeFile(
+      path.join(cwd, "feature_list.json"),
+      JSON.stringify({ version: 1, features: [{ slug: "glass", state: "approved" }] }),
+    );
+    await mkdir(path.join(cwd, "specs", "glass"), { recursive: true });
+    await writeFile(
+      path.join(cwd, "specs", "glass", "discovery.md"),
+      "# Discovery\nreal findings\n",
+    );
+    for (const file of specFiles) {
+      await writeFile(path.join(cwd, "specs", "glass", file), `# ${file}\ncontent\n`);
+    }
+    return cwd;
+  }
+
+  it("fails when an approved feature is missing a spec file", async () => {
+    const cwd = await setup(["requirements.md", "design.md"]); // no tasks.md
+    const config = makeConfig({ preset: "sdd" });
+    const report = await runVerify({ cwd, config, only: ["feature-list"] });
+    expect(report.results[0]?.status).toBe("fail");
+    expect(report.results[0]?.details).toContain("tasks.md");
+  });
+
+  it("passes when the approved feature has discovery + the three spec files", async () => {
+    const cwd = await setup(["requirements.md", "design.md", "tasks.md"]);
+    const config = makeConfig({ preset: "sdd" });
+    const report = await runVerify({ cwd, config, only: ["feature-list"] });
+    expect(report.results[0]?.status).toBe("pass");
+  });
+
+  it("does not require the spec files for spec_ready (only approved)", async () => {
+    const cwd = await tmp();
+    await writeFile(
+      path.join(cwd, "feature_list.json"),
+      JSON.stringify({ version: 1, features: [{ slug: "glass", state: "spec_ready" }] }),
+    );
+    await mkdir(path.join(cwd, "specs", "glass"), { recursive: true });
+    await writeFile(
+      path.join(cwd, "specs", "glass", "discovery.md"),
+      "# Discovery\nreal findings\n",
+    );
+    const config = makeConfig({ preset: "sdd" });
+    const report = await runVerify({ cwd, config, only: ["feature-list"] });
+    expect(report.results[0]?.status).toBe("pass");
   });
 });
 

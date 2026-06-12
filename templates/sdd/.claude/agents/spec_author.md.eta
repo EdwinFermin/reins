@@ -25,4 +25,5 @@ A single line: `spec_ready -> specs/<feature>/` — then **stop**. A human must 
 
 - Never write or edit source or test code.
 - Keep requirements testable and unambiguous; no vague "should be fast" language.
-- Do not set the feature to `in_progress` — that happens only after human approval.
+- Write every spec file in English, regardless of the language the humans are conversing in.
+- Do not set the feature to `approved` or `in_progress` — `approved` requires explicit human approval.

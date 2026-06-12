@@ -4,6 +4,43 @@ All notable changes to Reins are documented here. This project adheres to
 [Semantic Versioning](https://semver.org/). The harness template version tracks
 the package version, so `reins update` migrates installed harnesses to it.
 
+## 0.4.0
+
+### Front-loaded spec approval — new `approved` state
+
+- New feature state **`approved`** between `spec_ready` and `in_progress`: the
+  spec was human-approved and the feature is ready to implement with no further
+  questions. It is not an active state (any number of features may be
+  `approved`) and not dependency-gated (a spec may be approved before its
+  dependencies are done).
+- **`/brainstorm` (sdd) now runs the whole spec pipeline**: after the breakdown
+  is approved and the features are registered, it walks each feature — one at a
+  time, in dependency order — through discovery, open questions answered in
+  chat, spec authoring, and spec approval, ending with every feature `approved`.
+  All human questioning is front-loaded into the brainstorm.
+- **`/next-feature` fast-path**: an `approved` feature goes straight to
+  `in_progress` and implementation — no re-opened discovery, no questions, no
+  approvals. One feature per invocation. The `pending` path (features created
+  outside a brainstorm) keeps the discovery → validate → spec → approve flow.
+- **`/approve-spec` now sets `approved`** (previously `in_progress`);
+  implementation starts via `/next-feature`.
+- `reins verify`: an `approved` feature must have a non-empty `discovery.md`
+  **and** the three spec files (`requirements.md`, `design.md`, `tasks.md`).
+- `reins status`: the queue now lists `pending` + `approved` features;
+  `approved` features whose dependencies are `done` lead it.
+
+### Artifacts in English
+
+- All generated templates now instruct agents to write every artifact saved to
+  disk — brainstorm files, discoveries, specs, progress reports — **in
+  English**, regardless of the conversation language.
+
+### Notes for existing projects
+
+- `reins update` re-renders commands, agents, and docs with the new flow.
+  `feature_list.json` is create-only, so its informational `rules.validStates`
+  keeps the old list — harmless, since `reins verify` uses its own built-in set.
+
 ## 0.3.1
 
 ### Fixes

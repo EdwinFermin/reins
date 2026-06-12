@@ -1,6 +1,6 @@
 import path from "node:path";
 import { loadConfig } from "../config/load";
-import { normalizeFeatures, orderPending } from "../features/deps";
+import { normalizeFeatures, orderQueue } from "../features/deps";
 import { readJsonIfExists, readTextIfExists } from "../fs/read";
 import { readManifest } from "../manifest/harness-manifest";
 
@@ -68,8 +68,9 @@ export async function getStatus(cwd: string): Promise<StatusReport> {
   }
 
   const activeFeature = features.find((f) => f.state === "in_progress" || f.state === "analyzing");
-  // Dependency-ordered: features whose deps are all `done` come first.
-  const pending = orderPending(normalizeFeatures(features)).slice(0, 8);
+  // Dependency-ordered queue of `pending` + `approved` slugs; `approved`
+  // features whose deps are all `done` come first.
+  const pending = orderQueue(normalizeFeatures(features)).slice(0, 8);
 
   return {
     installed: true,

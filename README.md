@@ -130,20 +130,25 @@ cost/token usage to `progress/telemetry.jsonl`. Always exits `0`.
 ## The loop
 
 ```
-pending ──▶ (sdd: spec_author → spec_ready → human approval) ──▶ in_progress
-   ▲                                                                  │
-   └──────────── done ◀── reviewer + security-reviewer ◀── implementer ┘
+pending ──▶ (sdd: discovery → spec_author → spec_ready → human approval → approved) ──▶ in_progress
+   ▲                                                                                       │
+   └─────────────── done ◀── reviewer + security-reviewer ◀── implementer ◀────────────────┘
 ```
 
 The `leader` orchestrates; subagents write results to `progress/` and reply with a
 one-line reference; `reins verify` gates every step; exactly one feature is
-`in_progress` at a time.
+`in_progress` at a time. Every artifact saved to disk (specs, discoveries,
+progress reports) is written in English, whatever language you chat in.
 
 Have a bigger idea? `/brainstorm <idea>` decomposes it into several features,
-waits for your approval, then queues them as `pending` so you can work them one by
-one. The queue honors `dependsOn`: `reins verify` rejects cycles and dangling
-references and won't let a feature go `in_progress` before its dependencies are
-`done`, and `reins status` lists the queue in dependency order.
+waits for your approval, then queues them honoring `dependsOn`. Under sdd it then
+walks each feature through discovery, your answers to its open questions, spec
+authoring, and spec approval — so every feature ends up `approved` and
+`/next-feature` implements them one at a time with no further questions or
+approvals. `reins verify` rejects cycles and dangling references and won't let a
+feature go `in_progress` before its dependencies are `done`, and `reins status`
+lists the queue in dependency order (`approved` features ready to implement
+first).
 
 ## Configuration
 

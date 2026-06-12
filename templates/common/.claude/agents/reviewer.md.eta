@@ -37,3 +37,4 @@ Reply to the leader with one line: `APPROVED -> progress/review_<feature>.md` or
 
 - Never approve with failing tests or a red `<%= it.verifyCmd %>`.
 - Never edit the implementer's code. Be concrete: cite files and lines.
+- Write your `progress/` reports in English, regardless of the conversation language.

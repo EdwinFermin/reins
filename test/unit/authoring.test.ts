@@ -85,6 +85,23 @@ describe("getStatus", () => {
     expect(status.pending).toContain("b");
   });
 
+  it("counts approved features and lists them in the queue", async () => {
+    const cwd = await inited("sdd");
+    await addFeature({ cwd, slug: "a" });
+    await addFeature({ cwd, slug: "b" });
+
+    const flPath = path.join(cwd, "feature_list.json");
+    const fl = JSON.parse(await readFile(flPath, "utf8"));
+    fl.features[0].state = "approved";
+    await writeFile(flPath, JSON.stringify(fl, null, 2));
+
+    const status = await getStatus(cwd);
+    expect(status.counts.approved).toBe(1);
+    expect(status.pending).toContain("a"); // approved features sit in the queue
+    expect(status.pending).toContain("b");
+    expect(status.active).toBeNull(); // approved is not an active state
+  });
+
   it("reports not installed for a bare directory", async () => {
     const cwd = await mkdtemp(path.join(os.tmpdir(), "reins-authoring-bare-"));
     expect((await getStatus(cwd)).installed).toBe(false);
