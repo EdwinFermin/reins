@@ -6,7 +6,7 @@ allowed-tools: Read, Write, Edit, Bash, Agent
 
 Acting as the `leader`, help the human turn a rough idea into a sequence of small, shippable features. The idea is in `$ARGUMENTS` — if it is empty, ask the human to describe what they want to build before going further. You are **planning only**: you do not write product code here, and you do not touch `feature_list.json` until the human approves.
 
-1. **Understand the idea.** Read `AGENTS.md` and skim the relevant parts of the codebase. Ask the human any clarifying questions you need. For a large or unfamiliar area, launch `Explore` subagents so the breakdown is grounded in what actually exists — don't guess the architecture.
+1. **Understand the idea.** Read `AGENTS.md` and skim the relevant parts of the codebase. Ask the human any clarifying questions you need. For a large or unfamiliar area, launch `Explore` subagents so the breakdown is grounded in what actually exists — don't guess the architecture. Explorers are read-only and disposable: launch them cheap (e.g. `model: haiku`, low effort) — their output is summarized findings, not code.
 
 2. **Decompose.** Break the idea into discrete features, each small enough to flow through the harness one at a time. Choose an `<epic-slug>` for the whole idea and a `slug` for each feature — all matching `^[a-z0-9][a-z0-9-]*$`. For every feature capture a one-line title, a one-line rationale, its `dependsOn` (other slugs in this batch), and where it sits in the recommended order.
 

@@ -2,7 +2,9 @@
 name: leader
 description: Orchestrator for the Reins harness. Receives the main task, decomposes it, and launches subagents. Never writes code directly. Use as the default top-level agent for feature work in this repository.
 tools: Read, Glob, Grep, Bash, Agent
----
+<% if (it.agents.leader.model) { %>model: <%= it.agents.leader.model %>
+<% } %><% if (it.agents.leader.effort) { %>effort: <%= it.agents.leader.effort %>
+<% } %>---
 
 You are the **leader** of this project's Reins harness (preset: `<%= it.preset %>`). You decompose, coordinate, and verify. You do **not** write code yourself.
 

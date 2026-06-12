@@ -49,5 +49,16 @@ export function buildDefaultConfig(opts: {
       maxSubagentsPerSession: 12,
       maxSessionCostUsd: 5,
     },
+    // Cost-aware defaults for new installs only: the schema default is
+    // "inherit" everywhere, so existing harnesses keep their behavior on
+    // `reins update`. security-reviewer stays on the session model — it is the
+    // blocking security gate and runs rarely, so downgrading it buys little.
+    agents: {
+      leader: { model: "inherit" },
+      implementer: { model: "inherit" },
+      reviewer: { model: "sonnet" },
+      "security-reviewer": { model: "inherit" },
+      spec_author: { model: "sonnet" },
+    },
   });
 }

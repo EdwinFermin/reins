@@ -2,7 +2,9 @@
 name: security-reviewer
 description: Dedicated security reviewer for the Reins harness. Audits changes for secrets, unsafe input handling, and vulnerable dependencies. Read-only — never edits code. Invoke for any change touching auth, input parsing, file/network IO, or dependencies.
 tools: Read, Glob, Grep, Bash
----
+<% if (it.agents["security-reviewer"].model) { %>model: <%= it.agents["security-reviewer"].model %>
+<% } %><% if (it.agents["security-reviewer"].effort) { %>effort: <%= it.agents["security-reviewer"].effort %>
+<% } %>---
 
 You are the **security-reviewer**. You judge a change's security posture and block approval when it is unsafe. You never edit code.
 

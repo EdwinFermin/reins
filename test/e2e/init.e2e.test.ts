@@ -42,6 +42,14 @@ describe("reins init — sdd on a node project", () => {
     expect(leader).toContain("tools: Read, Glob, Grep, Bash, Agent");
     expect(await exists(path.join(cwd, ".claude/agents/spec_author.md"))).toBe(true);
 
+    // Per-role model defaults: inherit roles omit the field, cheap roles pin it.
+    expect(leader).not.toContain("model:");
+    expect(leader).toContain("tools: Read, Glob, Grep, Bash, Agent\n---");
+    const reviewer = await readFile(path.join(cwd, ".claude/agents/reviewer.md"), "utf8");
+    expect(reviewer).toContain("tools: Read, Glob, Grep, Bash\nmodel: sonnet\n---");
+    const specAuthor = await readFile(path.join(cwd, ".claude/agents/spec_author.md"), "utf8");
+    expect(specAuthor).toContain("model: sonnet\n---");
+
     // The brainstorm command is COMMON — present under sdd too.
     const brainstorm = await readFile(path.join(cwd, ".claude/commands/brainstorm.md"), "utf8");
     expect(brainstorm).toContain("$ARGUMENTS");

@@ -59,6 +59,38 @@ describe("addAgent", () => {
     expect(text).toContain("tools: Read, Grep");
   });
 
+  it("writes model and effort overrides into the frontmatter", async () => {
+    const cwd = await inited("lite");
+    const result = await addAgent({
+      cwd,
+      role: "explorer",
+      from: "reviewer",
+      model: "haiku",
+      effort: "low",
+    });
+    expect(result.added).toBe(true);
+
+    const text = await readFile(path.join(cwd, ".claude/agents/explorer.md"), "utf8");
+    const frontmatter = text.slice(0, text.indexOf("\n---", 3));
+    expect(frontmatter).toContain("model: haiku");
+    expect(frontmatter).toContain("effort: low");
+  });
+
+  it("treats model inherit as omit and rejects invalid model/effort values", async () => {
+    const cwd = await inited("lite");
+    const inherit = await addAgent({ cwd, role: "scout", from: "leader", model: "inherit" });
+    expect(inherit.added).toBe(true);
+    const text = await readFile(path.join(cwd, ".claude/agents/scout.md"), "utf8");
+    expect(text.slice(0, text.indexOf("\n---", 3))).not.toContain("model:");
+
+    expect((await addAgent({ cwd, role: "a1", from: "reviewer", effort: "ultra" })).added).toBe(
+      false,
+    );
+    expect((await addAgent({ cwd, role: "a2", from: "reviewer", model: "so net" })).added).toBe(
+      false,
+    );
+  });
+
   it("refuses an existing agent and unknown roles", async () => {
     const cwd = await inited("lite");
     expect((await addAgent({ cwd, role: "reviewer" })).added).toBe(false); // created by init

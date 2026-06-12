@@ -8,14 +8,15 @@ This repository is the system. Documentation, configuration, living state, and t
 
 ## Roles (`.claude/agents/`)
 
-| Agent | Powers | Responsibility |
-| --- | --- | --- |
-| `leader` | Read, Grep, Bash, Agent | Orchestrates; never edits code. |
-| `implementer` | Read, Write, Edit, Bash | Implements one feature + its tests; self-verifies. |
-| `reviewer` | Read, Grep, Bash | Approves/rejects against docs + checkpoints. |
-| `security-reviewer` | Read, Grep, Bash | Audits secrets, input handling, dependencies. |
-<% if (it.isSdd) { %>| `spec_author` | Write to `specs/` only | Writes EARS requirements, design, tasks. |
+| Agent | Powers | Model | Responsibility |
+| --- | --- | --- | --- |
+| `leader` | Read, Grep, Bash, Agent | <%= it.agents.leader.model ?? "inherit" %> | Orchestrates; never edits code. |
+| `implementer` | Read, Write, Edit, Bash | <%= it.agents.implementer.model ?? "inherit" %> | Implements one feature + its tests; self-verifies. |
+| `reviewer` | Read, Grep, Bash | <%= it.agents.reviewer.model ?? "inherit" %> | Approves/rejects against docs + checkpoints. |
+| `security-reviewer` | Read, Grep, Bash | <%= it.agents["security-reviewer"].model ?? "inherit" %> | Audits secrets, input handling, dependencies. |
+<% if (it.isSdd) { %>| `spec_author` | Write to `specs/` only | <%= it.agents.spec_author.model ?? "inherit" %> | Writes EARS requirements, design, tasks. |
 <% } %>
+Per-role model and effort are set in `reins.config.json` under `agents` (`inherit` = use the session's model/effort).
 
 ## Workflow
 

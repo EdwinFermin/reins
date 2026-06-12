@@ -1,6 +1,7 @@
 import { mkdir, writeFile } from "node:fs/promises";
 import path from "node:path";
 import { loadConfig } from "../config/load";
+import { AgentModelSchema, EFFORT_LEVELS } from "../config/schema";
 import { pathExists } from "../fs/read";
 import { buildTemplateContext } from "../render/context";
 import { renderFile } from "../render/engine";
@@ -22,6 +23,8 @@ export interface AddAgentOptions {
   name?: string;
   tools?: string;
   from?: string;
+  model?: string;
+  effort?: string;
 }
 
 export interface AddAgentResult {
@@ -30,10 +33,11 @@ export interface AddAgentResult {
   reason?: string;
 }
 
-/** Replace `key: ...` on the first matching line (the frontmatter). */
+/** Replace `key: ...` in the frontmatter, or insert it before the closing `---`. */
 function setFrontmatterField(content: string, key: string, value: string): string {
   const re = new RegExp(`(^|\\n)(${key}:)[^\\n]*`);
-  return re.test(content) ? content.replace(re, `$1$2 ${value}`) : content;
+  if (re.test(content)) return content.replace(re, `$1$2 ${value}`);
+  return content.replace(/\n---\n/, `\n${key}: ${value}\n---\n`);
 }
 
 /** Add a subagent definition from a built-in role template. */
@@ -49,6 +53,14 @@ export async function addAgent(opts: AddAgentOptions): Promise<AddAgentResult> {
     );
   }
   if (!NAME_RE.test(name)) return fail("invalid agent name (lowercase letters, digits, _ and -)");
+  if (opts.model && !AgentModelSchema.safeParse(opts.model).success) {
+    return fail(
+      `invalid model "${opts.model}" — use an alias (sonnet, opus, haiku, fable, inherit) or a full model ID`,
+    );
+  }
+  if (opts.effort && !(EFFORT_LEVELS as readonly string[]).includes(opts.effort)) {
+    return fail(`invalid effort "${opts.effort}" — valid levels: ${EFFORT_LEVELS.join(", ")}`);
+  }
 
   const config = await loadConfig(opts.cwd).catch(() => null);
   if (!config) return fail("no reins.config.json — run `reins init`");
@@ -63,6 +75,9 @@ export async function addAgent(opts: AddAgentOptions): Promise<AddAgentResult> {
   let content = renderFile(template, ctx as unknown as Record<string, unknown>);
   if (name !== sourceRole) content = setFrontmatterField(content, "name", name);
   if (opts.tools) content = setFrontmatterField(content, "tools", opts.tools);
+  if (opts.model && opts.model !== "inherit")
+    content = setFrontmatterField(content, "model", opts.model);
+  if (opts.effort) content = setFrontmatterField(content, "effort", opts.effort);
 
   await mkdir(path.dirname(dest), { recursive: true });
   await writeFile(dest, normalizeText(content), "utf8");

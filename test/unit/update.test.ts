@@ -69,4 +69,45 @@ describe("runUpdate", () => {
     const result = await runUpdate({ cwd, harnessVersion: "0.2.0", apply: true });
     expect(result.installed).toBe(false);
   });
+
+  it("renders identical agent files for legacy configs without an agents section", async () => {
+    const cwd = await inited("0.1.0");
+
+    // Simulate a legacy harness: no `agents` section (Zod fills all-inherit) and
+    // rebase the manifest onto that state.
+    const cfgPath = path.join(cwd, "reins.config.json");
+    const cfg = JSON.parse(await readFile(cfgPath, "utf8"));
+    delete cfg.agents;
+    await writeFile(cfgPath, JSON.stringify(cfg, null, 2));
+    await runUpdate({ cwd, harnessVersion: "0.1.0", apply: true });
+
+    const reviewer = path.join(cwd, ".claude/agents/reviewer.md");
+    const text = await readFile(reviewer, "utf8");
+    expect(text).not.toContain("model:"); // inherit -> field omitted entirely
+    expect(text).toContain("tools: Read, Glob, Grep, Bash\n---");
+
+    // A user edit on top of the inherit render must survive as kept-user, never conflict.
+    await appendFile(reviewer, "\n<!-- my custom note -->\n");
+    const result = await runUpdate({ cwd, harnessVersion: "0.1.0", apply: true });
+    expect(result.entries.some((e) => e.action === "conflict")).toBe(false);
+    expect(result.entries.find((e) => e.path === ".claude/agents/reviewer.md")?.action).toBe(
+      "kept-user",
+    );
+  });
+
+  it("rewrites agent frontmatter when the config changes a role's model", async () => {
+    const cwd = await inited("0.1.0");
+
+    const cfgPath = path.join(cwd, "reins.config.json");
+    const cfg = JSON.parse(await readFile(cfgPath, "utf8"));
+    cfg.agents = { ...cfg.agents, implementer: { model: "haiku", effort: "low" } };
+    await writeFile(cfgPath, JSON.stringify(cfg, null, 2));
+
+    const result = await runUpdate({ cwd, harnessVersion: "0.1.0", apply: true });
+    expect(result.entries.find((e) => e.path === ".claude/agents/implementer.md")?.action).toBe(
+      "updated",
+    );
+    const text = await readFile(path.join(cwd, ".claude/agents/implementer.md"), "utf8");
+    expect(text).toContain("model: haiku\neffort: low\n---");
+  });
 });

@@ -2,7 +2,9 @@
 name: spec_author
 description: Specification author for the Reins SDD harness. Writes the three spec files for one feature (requirements in EARS, design, tasks). Never touches source or test code. Invoked by the leader before implementation.
 tools: Read, Write, Edit, Glob, Grep, Bash
----
+<% if (it.agents.spec_author.model) { %>model: <%= it.agents.spec_author.model %>
+<% } %><% if (it.agents.spec_author.effort) { %>effort: <%= it.agents.spec_author.effort %>
+<% } %>---
 
 You are the **spec_author**. You turn a feature into an approvable specification. You write **only** under `specs/` — never source or test code.
 

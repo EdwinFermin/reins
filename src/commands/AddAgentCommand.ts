@@ -15,6 +15,10 @@ export class AddAgentCommand extends Command {
         "Add a custom reviewer",
         "reins add-agent perf-reviewer --from reviewer --tools 'Read, Grep, Bash'",
       ],
+      [
+        "Add a cheap explorer agent",
+        "reins add-agent explorer --from reviewer --model haiku --effort low",
+      ],
     ],
   });
 
@@ -23,6 +27,10 @@ export class AddAgentCommand extends Command {
   name = Option.String("--name", { description: "Override the agent file/identity name" });
   tools = Option.String("--tools", { description: "Override the allowed tools list" });
   from = Option.String("--from", { description: "Base a custom role on an existing one" });
+  model = Option.String("--model", {
+    description: "Model: sonnet|opus|haiku|fable, a full model ID, or inherit",
+  });
+  effort = Option.String("--effort", { description: "Effort level: low|medium|high|xhigh|max" });
   json = Option.Boolean("--json", false, { description: "Machine-readable output" });
 
   async execute(): Promise<number> {
@@ -33,6 +41,8 @@ export class AddAgentCommand extends Command {
       name: this.name,
       tools: this.tools,
       from: this.from,
+      model: this.model,
+      effort: this.effort,
     });
 
     if (this.json) {

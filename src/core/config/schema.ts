@@ -19,6 +19,15 @@ export const HOOK_NAMES = [
   "PreCommit",
   "CI",
 ] as const;
+export const AGENT_ROLES = [
+  "leader",
+  "implementer",
+  "reviewer",
+  "security-reviewer",
+  "spec_author",
+] as const;
+export const MODEL_ALIASES = ["inherit", "sonnet", "opus", "haiku", "fable"] as const;
+export const EFFORT_LEVELS = ["low", "medium", "high", "xhigh", "max"] as const;
 
 const CommandSchema = z.union([
   z.string(),
@@ -28,6 +37,24 @@ const CommandSchema = z.union([
     timeoutMs: z.number().int().positive().optional(),
   }),
 ]);
+
+// A model alias or a full model ID (e.g. "claude-sonnet-4-6"). Claude Code
+// accepts arbitrary full IDs, so only the shape is sanity-checked here.
+export const AgentModelSchema = z.union([
+  z.enum(MODEL_ALIASES),
+  z
+    .string()
+    .min(1)
+    .regex(/^[A-Za-z0-9][A-Za-z0-9._:-]*$/, "expected a model alias or a full model ID"),
+]);
+
+const AgentPolicySchema = z
+  .object({
+    model: AgentModelSchema.default("inherit"),
+    effort: z.enum(EFFORT_LEVELS).optional(),
+  })
+  .strict()
+  .default({});
 
 export const SecurityGatesSchema = z.object({
   depsAudit: z
@@ -86,6 +113,16 @@ export const ReinsConfigSchema = z
         pricingTable: z.string().optional(),
       })
       .default({}),
+    agents: z
+      .object({
+        leader: AgentPolicySchema,
+        implementer: AgentPolicySchema,
+        reviewer: AgentPolicySchema,
+        "security-reviewer": AgentPolicySchema,
+        spec_author: AgentPolicySchema,
+      })
+      .strict()
+      .default({}),
   })
   .strict();
 
@@ -96,3 +133,6 @@ export type Language = (typeof LANGUAGES)[number];
 export type CheckId = (typeof CHECK_IDS)[number];
 export type HookName = (typeof HOOK_NAMES)[number];
 export type CommandSpec = z.infer<typeof CommandSchema>;
+export type AgentRole = (typeof AGENT_ROLES)[number];
+export type EffortLevel = (typeof EFFORT_LEVELS)[number];
+export type AgentPolicy = z.infer<typeof AgentPolicySchema>;

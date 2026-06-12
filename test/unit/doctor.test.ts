@@ -1,4 +1,4 @@
-import { mkdtemp, rm, stat, writeFile } from "node:fs/promises";
+import { mkdtemp, readFile, rm, stat, writeFile } from "node:fs/promises";
 import os from "node:os";
 import path from "node:path";
 import { describe, expect, it } from "vitest";
@@ -39,6 +39,19 @@ describe("runDoctor", () => {
     const report = await runDoctor(cwd, "0.1.0");
     expect(report.installed).toBe(false);
     expect(computeDoctorExit(report)).toBe(2);
+  });
+
+  it("warns on invalid model/effort frontmatter values", async () => {
+    const cwd = await initedProject();
+    const reviewer = path.join(cwd, ".claude/agents/reviewer.md");
+    const text = await readFile(reviewer, "utf8");
+    await writeFile(reviewer, text.replace("model: sonnet", "model: sonnet\neffort: ultra"));
+
+    const report = await runDoctor(cwd, "0.1.0");
+    const entry = report.results.find((r) => r.id === "agent:reviewer");
+    expect(entry?.status).toBe("warn");
+    expect(entry?.summary).toContain('invalid effort "ultra"');
+    expect(report.ok).toBe(true); // warn, not fail
   });
 
   it("warns when the harness version is behind the CLI", async () => {

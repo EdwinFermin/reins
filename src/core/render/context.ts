@@ -1,4 +1,11 @@
-import type { CommandSpec, Preset, ReinsConfig } from "../config/schema";
+import {
+  AGENT_ROLES,
+  type AgentPolicy,
+  type AgentRole,
+  type CommandSpec,
+  type Preset,
+  type ReinsConfig,
+} from "../config/schema";
 
 export interface ResolvedCommands {
   test: string | null;
@@ -6,6 +13,12 @@ export interface ResolvedCommands {
   lint: string | null;
   e2e: string | null;
   typecheck: string | null;
+}
+
+/** Per-role model/effort resolved for templates: null means inherit -> omit the field. */
+export interface ResolvedAgentPolicy {
+  model: string | null;
+  effort: string | null;
 }
 
 /** The data object passed to every harness template (available as `it` in eta). */
@@ -23,6 +36,12 @@ export interface TemplateContext {
   commands: ResolvedCommands;
   verifyCmd: string;
   permissionsAllow: string[];
+  agents: Record<AgentRole, ResolvedAgentPolicy>;
+}
+
+function resolveAgentPolicy(p: AgentPolicy | undefined): ResolvedAgentPolicy {
+  const model = p?.model && p.model !== "inherit" ? p.model : null;
+  return { model, effort: p?.effort ?? null };
 }
 
 function commandToString(c: CommandSpec | null | undefined): string | null {
@@ -101,5 +120,8 @@ export function buildTemplateContext(
     commands,
     verifyCmd: "npx reins verify",
     permissionsAllow: buildPermissionsAllow(language, pm),
+    agents: Object.fromEntries(
+      AGENT_ROLES.map((role) => [role, resolveAgentPolicy(config.agents[role])]),
+    ) as Record<AgentRole, ResolvedAgentPolicy>,
   };
 }

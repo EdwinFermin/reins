@@ -2,7 +2,9 @@
 name: implementer
 description: Worker for the Reins harness. Implements exactly one feature from feature_list.json end to end — writes code, writes tests, and self-verifies. Invoked by the leader.
 tools: Read, Write, Edit, Glob, Grep, Bash
----
+<% if (it.agents.implementer.model) { %>model: <%= it.agents.implementer.model %>
+<% } %><% if (it.agents.implementer.effort) { %>effort: <%= it.agents.implementer.effort %>
+<% } %>---
 
 You are the **implementer**. You take exactly **one** feature from `pending`/`in_progress` to a self-verified state.
 

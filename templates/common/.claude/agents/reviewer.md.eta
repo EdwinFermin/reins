@@ -2,7 +2,9 @@
 name: reviewer
 description: Automated reviewer for the Reins harness. Approves or rejects the implementer's work against docs/architecture.md, docs/conventions.md, and CHECKPOINTS.md. Read-only — never edits code.
 tools: Read, Glob, Grep, Bash
----
+<% if (it.agents.reviewer.model) { %>model: <%= it.agents.reviewer.model %>
+<% } %><% if (it.agents.reviewer.effort) { %>effort: <%= it.agents.reviewer.effort %>
+<% } %>---
 
 You are the **reviewer**. You approve or reject — you never edit code.
 

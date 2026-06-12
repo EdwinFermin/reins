@@ -114,7 +114,13 @@ Register a feature in `feature_list.json`.
 Add a subagent from a template (`leader`, `implementer`, `reviewer`,
 `security-reviewer`, `spec_author`, or a custom role via `--from`).
 
-`--name <id>` · `--tools "Read, Grep, …"` · `--from <role>` · `--cwd <dir>` · `--json`
+`--name <id>` · `--tools "Read, Grep, …"` · `--from <role>` ·
+`--model <alias|id|inherit>` · `--effort <low|medium|high|xhigh|max>` ·
+`--cwd <dir>` · `--json`
+
+```bash
+reins add-agent explorer --from reviewer --model haiku --effort low
+```
 
 ### `reins status`
 
@@ -126,6 +132,96 @@ Show the active feature, the queue, and session cost/token telemetry.
 
 Internal — invoked by the `SubagentStop` hook to append best-effort subagent
 cost/token usage to `progress/telemetry.jsonl`. Always exits `0`.
+
+## Slash commands (inside Claude Code)
+
+`reins init` also installs slash commands under `.claude/commands/`. You type
+them **in the Claude Code chat** (not the terminal) and they drive the harness
+flow for you. Arguments go right after the command, separated by spaces.
+
+### `/brainstorm <idea>`
+
+Turns a rough idea into a sequence of small, ordered features. The leader
+explores the codebase, proposes a breakdown (saved to
+`progress/brainstorm_<epic>.md`), waits for your approval in chat, and then
+registers the features honoring `dependsOn`. Under the `sdd` preset it
+continues into the spec pipeline: discovery → your answers to its open
+questions → spec → approval, feature by feature, until everything is
+`approved`.
+
+```
+/brainstorm a CLI flag to export reports as CSV and PDF
+/brainstorm migrate user sessions from cookies to JWT
+```
+
+### `/next-feature [feature-slug]`
+
+Starts work on the next feature in the dependency-ordered queue (or the one
+you name). `approved` features go straight to implementation — implementer,
+then reviewer (and security-reviewer when the change touches auth, input, IO,
+secrets, or dependencies) — with no further questions. `pending` features
+(created outside a brainstorm) first go through discovery.
+
+```
+/next-feature
+/next-feature csv-export
+```
+
+### `/reins-verify`
+
+Runs the verification gate (`npx reins verify`) and summarizes which checks
+passed, failed, or were skipped, and what to fix first.
+
+```
+/reins-verify
+```
+
+### `/reins-status`
+
+Shows the harness status: active feature, queue of `pending`/`approved`
+features, latest subagent reports under `progress/`, and session telemetry.
+
+```
+/reins-status
+```
+
+### `/new-spec <feature-slug>` _(sdd only)_
+
+Launches `spec_author` to draft the three spec files for a feature
+(`requirements.md` in EARS notation, `design.md`, `tasks.md` with
+requirement↔test traceability).
+
+```
+/new-spec csv-export
+```
+
+### `/validate-discovery <feature-slug>` _(sdd only)_
+
+For a feature stuck in `needs_clarification`: confirms the discovery's open
+questions are answered, then launches `spec_author` to write the spec grounded
+in the resolved discovery. Ends at `spec_ready`, waiting for `/approve-spec`.
+
+```
+/validate-discovery csv-export
+```
+
+### `/approve-spec <feature-slug>` _(sdd only)_
+
+The human approval gate: verifies the spec is complete and marks the feature
+`approved`, ready for `/next-feature`. It never starts implementation itself.
+
+```
+/approve-spec csv-export
+```
+
+A typical session, end to end:
+
+```
+/brainstorm export reports as CSV and PDF   # decompose + (sdd) approve every spec in chat
+/next-feature                               # implement the first feature, gate-free
+/reins-status                               # see what's done and what's next
+/next-feature                               # ...repeat until the queue is empty
+```
 
 ## The loop
 
@@ -161,8 +257,30 @@ first).
   "commands": { "test": "pnpm test", "lint": "pnpm run lint", "e2e": null },
   "verify": { "required": ["lint", "unit", "security", "feature-list", "traceability"] },
   "security": { "depsAudit": { "failOn": "high" }, "secretScan": { "failOnAny": true } },
+  "agents": {
+    "reviewer": { "model": "sonnet" },
+    "spec_author": { "model": "sonnet", "effort": "medium" },
+  },
 }
 ```
+
+### Per-role model & effort
+
+Each agent role can pin the Claude Code **model** and **effort level** it runs
+with, so cheaper models handle the less critical work:
+
+- `model` — `sonnet`, `opus`, `haiku`, `fable`, a full model ID
+  (e.g. `claude-haiku-4-5-20251001`), or `inherit` (default: use the session's
+  model).
+- `effort` — `low`, `medium`, `high`, `xhigh`, or `max`; omitted = inherit the
+  session's effort. Available levels depend on the model (validated by Claude
+  Code at runtime).
+
+New installs default `reviewer` and `spec_author` to `sonnet` and leave
+`leader`, `implementer`, and `security-reviewer` on `inherit`. Existing
+harnesses keep `inherit` everywhere until you add an `agents` section to
+`reins.config.json` and run `reins update`. Per-file overrides:
+`reins add-agent … --model haiku --effort low`.
 
 ## Requirements
 

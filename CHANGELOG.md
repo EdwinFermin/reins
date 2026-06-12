@@ -4,6 +4,38 @@ All notable changes to Reins are documented here. This project adheres to
 [Semantic Versioning](https://semver.org/). The harness template version tracks
 the package version, so `reins update` migrates installed harnesses to it.
 
+## 0.5.0
+
+### Per-role model & effort configuration
+
+- New optional **`agents` section in `reins.config.json`**: each role
+  (`leader`, `implementer`, `reviewer`, `security-reviewer`, `spec_author`) can
+  pin `model` (`sonnet`/`opus`/`haiku`/`fable`, a full model ID, or `inherit`)
+  and `effort` (`low`/`medium`/`high`/`xhigh`/`max`). Rendered as native Claude
+  Code `model:`/`effort:` frontmatter in `.claude/agents/*.md`; `inherit`
+  (the default) omits the field so the subagent uses the session's model and
+  effort.
+- **New installs** default `reviewer` and `spec_author` to `sonnet` to cut
+  token cost on review/spec work; `leader`, `implementer`, and
+  `security-reviewer` stay on `inherit` (the security gate runs rarely and a
+  missed vulnerability costs more than it saves).
+- **Existing harnesses are unaffected**: configs without an `agents` section
+  parse as all-`inherit` and `reins update` re-renders agent files
+  byte-identically. To opt in, add the `agents` section to `reins.config.json`
+  and run `reins update`.
+- **`reins add-agent --model / --effort`** for per-file overrides, e.g.
+  `reins add-agent explorer --from reviewer --model haiku --effort low`.
+- `reins doctor` warns on invalid `model:`/`effort:` frontmatter values.
+- `AGENTS.md` role table gains a **Model** column; `/brainstorm` and
+  `/next-feature` now suggest launching explorers on cheap models.
+
+### Docs
+
+- README: new **"Slash commands (inside Claude Code)"** section documenting
+  every generated command (`/brainstorm`, `/next-feature`, `/reins-verify`,
+  `/reins-status`, `/new-spec`, `/validate-discovery`, `/approve-spec`) with
+  usage examples and an end-to-end session walkthrough.
+
 ## 0.4.0
 
 ### Front-loaded spec approval — new `approved` state

@@ -1,6 +1,6 @@
 import path from "node:path";
 import { loadConfig } from "../config/load";
-import type { ReinsConfig } from "../config/schema";
+import { AgentModelSchema, EFFORT_LEVELS, type ReinsConfig } from "../config/schema";
 import { pathExists, readTextIfExists } from "../fs/read";
 import { readManifest } from "../manifest/harness-manifest";
 import { featureListCheck } from "../verify/state-checks";
@@ -32,6 +32,26 @@ function hasFrontmatterKeys(text: string, keys: string[]): boolean {
   const end = text.indexOf("\n---", 3);
   const fm = end > 0 ? text.slice(0, end) : text;
   return keys.every((k) => new RegExp(`(^|\\n)${k}:`).test(fm));
+}
+
+/** Read one frontmatter value, or null when the key is absent (no full YAML parse). */
+function frontmatterValue(text: string, key: string): string | null {
+  if (!text.startsWith("---")) return null;
+  const end = text.indexOf("\n---", 3);
+  const fm = end > 0 ? text.slice(0, end) : text;
+  const m = fm.match(new RegExp(`(^|\\n)${key}:\\s*([^\\n]*)`));
+  return m ? (m[2] ?? "").trim() : null;
+}
+
+/** Validate optional model/effort frontmatter; absent keys mean inherit and are fine. */
+function agentPolicyIssue(text: string): string | null {
+  const model = frontmatterValue(text, "model");
+  if (model !== null && !AgentModelSchema.safeParse(model).success)
+    return `invalid model "${model}"`;
+  const effort = frontmatterValue(text, "effort");
+  if (effort !== null && !(EFFORT_LEVELS as readonly string[]).includes(effort))
+    return `invalid effort "${effort}" (${EFFORT_LEVELS.join("|")})`;
+  return null;
 }
 
 function parseSemver(v: string): number[] {
@@ -114,9 +134,12 @@ export async function runDoctor(cwd: string, cliVersion: string): Promise<Doctor
   if (cfg.preset === "sdd") agents.push("spec_author");
   for (const agent of agents) {
     const text = await readTextIfExists(path.join(cwd, ".claude/agents", `${agent}.md`));
+    const policyIssue = text ? agentPolicyIssue(text) : null;
     if (!text) results.push(result(`agent:${agent}`, "fail", `.claude/agents/${agent}.md missing`));
     else if (!hasFrontmatterKeys(text, ["name", "description", "tools"]))
       results.push(result(`agent:${agent}`, "warn", `${agent}.md frontmatter incomplete`));
+    else if (policyIssue)
+      results.push(result(`agent:${agent}`, "warn", `${agent}.md: ${policyIssue}`));
     else results.push(result(`agent:${agent}`, "ok", `${agent}`));
   }
 
