@@ -1,0 +1,5 @@
+---
+description: Run the Reins verification gate and summarize the result.
+---
+
+Run `<%= it.verifyCmd %>` and report a concise summary: which checks passed, failed, or were skipped, and what to fix first. If everything passes, say so plainly and stop.

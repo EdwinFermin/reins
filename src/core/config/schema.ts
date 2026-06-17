@@ -1,6 +1,7 @@
 import { z } from "zod";
 
 export const PRESETS = ["lite", "sdd"] as const;
+export const RUNTIMES = ["claude", "opencode"] as const;
 export const LANGUAGES = ["node", "python", "go", "rust", "ruby", "java", "other"] as const;
 export const CHECK_IDS = [
   "lint",
@@ -38,14 +39,15 @@ const CommandSchema = z.union([
   }),
 ]);
 
-// A model alias or a full model ID (e.g. "claude-sonnet-4-6"). Claude Code
-// accepts arbitrary full IDs, so only the shape is sanity-checked here.
+// A model alias or a full model ID. Claude Code accepts bare IDs
+// (e.g. "claude-sonnet-4-6"); opencode uses "provider/model"
+// (e.g. "anthropic/claude-sonnet-4-5"). Only the shape is sanity-checked here.
 export const AgentModelSchema = z.union([
   z.enum(MODEL_ALIASES),
   z
     .string()
     .min(1)
-    .regex(/^[A-Za-z0-9][A-Za-z0-9._:-]*$/, "expected a model alias or a full model ID"),
+    .regex(/^[A-Za-z0-9][A-Za-z0-9._:/-]*$/, "expected a model alias or a full model ID"),
 ]);
 
 const AgentPolicySchema = z
@@ -80,7 +82,7 @@ export const ReinsConfigSchema = z
     $schema: z.string().optional(),
     harnessVersion: z.string(),
     preset: z.enum(PRESETS),
-    runtime: z.literal("claude").default("claude"),
+    runtime: z.enum(RUNTIMES).default("claude"),
     stack: z.object({
       language: z.enum(LANGUAGES),
       packageManager: z.string().optional(),
@@ -129,6 +131,7 @@ export const ReinsConfigSchema = z
 export type ReinsConfig = z.infer<typeof ReinsConfigSchema>;
 export type ReinsConfigInput = z.input<typeof ReinsConfigSchema>;
 export type Preset = (typeof PRESETS)[number];
+export type Runtime = (typeof RUNTIMES)[number];
 export type Language = (typeof LANGUAGES)[number];
 export type CheckId = (typeof CHECK_IDS)[number];
 export type HookName = (typeof HOOK_NAMES)[number];

@@ -2,7 +2,7 @@
 
 Objective criteria the `reviewer` walks before approving. Each maps to an executable check — run `<%= it.verifyCmd %>` and `reins doctor` to evaluate them mechanically.
 
-- **C1 — Harness intact.** All base files present (`.claude/agents/*`, `docs/*`, `feature_list.json`, `progress/`). → `reins doctor`
+- **C1 — Harness intact.** All base files present (`<% if (it.runtime === "opencode") { %>.opencode/agents/*<% } else { %>.claude/agents/*<% } %>`, `docs/*`, `feature_list.json`, `progress/`). → `reins doctor`
 - **C2 — Coherent state.** At most one feature `in_progress`; states are valid. → `<%= it.verifyCmd %> --only feature-list`
 - **C3 — Lint clean.** Code matches `docs/conventions.md`. → `<%= it.verifyCmd %> --only lint`
 - **C4 — Tests green.** Every changed behavior has a passing test. → `<%= it.verifyCmd %> --only unit`

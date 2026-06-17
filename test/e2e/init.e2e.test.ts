@@ -59,6 +59,12 @@ describe("reins init — sdd on a node project", () => {
     expect(brainstorm).toContain("`approved`");
     expect(brainstorm).toContain("in English");
 
+    // autopilot is a COMMON command: the batch form of next-feature.
+    const autopilot = await readFile(path.join(cwd, ".claude/commands/autopilot.md"), "utf8");
+    expect(autopilot).toContain("allowed-tools: Read, Bash, Agent");
+    expect(autopilot).toContain("ready queue");
+    expect(autopilot).toContain("`approved`"); // sdd targets approved features
+
     // approve-spec now targets `approved`, not `in_progress`.
     const approveSpec = await readFile(path.join(cwd, ".claude/commands/approve-spec.md"), "utf8");
     expect(approveSpec).toContain("`approved`");
@@ -112,6 +118,9 @@ describe("reins init — lite", () => {
     expect(await exists(path.join(cwd, "specs/_template/requirements.md"))).toBe(false);
     // COMMON commands are present in lite too.
     expect(await exists(path.join(cwd, ".claude/commands/brainstorm.md"))).toBe(true);
+    const autopilot = await readFile(path.join(cwd, ".claude/commands/autopilot.md"), "utf8");
+    expect(autopilot).toContain("`pending`"); // lite targets pending features
+    expect(autopilot).not.toContain("`approved`");
 
     // Edit living state, re-run, confirm it is preserved (create-only).
     await writeFile(

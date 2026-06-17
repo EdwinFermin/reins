@@ -55,7 +55,7 @@ export function classifyThreeWay(
   return "conflict";
 }
 
-const MERGE_KINDS = new Set<FileKind>(["settings-json", "gitignore", "claude-md"]);
+const MERGE_KINDS = new Set<FileKind>(["settings-json", "gitignore", "claude-md", "agents-md"]);
 
 function stamp(): string {
   return new Date().toISOString().replace(/[:.]/g, "-");

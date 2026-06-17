@@ -1,0 +1,61 @@
+# Project instructions — <%= it.projectName %> (Reins harness, `<%= it.preset %>` preset)
+
+> Installed and maintained by [Reins](https://www.npmjs.com/package/@fermin-dev/reins) (harness v<%= it.harnessVersion %>, opencode runtime). opencode reads this file as the project's rules. It is both the **contract** and a **map** — read what you need, when you need it.
+
+This repository is managed by a **Reins** harness. The primary agent here is the `leader` (defined in `.opencode/agents/leader.md`); subagents live alongside it.
+
+## Core contract
+
+- **Orchestrate, do not implement.** For any code change, delegate to the `implementer` subagent (via the `task` tool); for review, `reviewer` (and `security-reviewer` for anything touching auth, input, IO, secrets, or dependencies). The leader never edits source or test files directly.
+- **State lives on disk, not in chat.** Subagents write their results to files under `progress/` and reply with a one-line reference. The source of truth is the repository, not the conversation.
+- **One feature `in_progress` at a time**, tracked in `feature_list.json`.
+- **Verification is law.** Run `<%= it.verifyCmd %>` before ending a session; a failing required check means the work is not done. The `.opencode/plugins/reins-verify.ts` plugin runs it automatically.
+- **Artifacts in English.** Every file written to disk — discovery docs, specs, brainstorm files, progress reports — is in English, regardless of the conversation language.
+<% if (it.isSdd) { %>- **Spec-Driven (SDD).** No plan without analysis, no code without an approved spec. Features go `pending → analyzing → needs_clarification` (the leader writes `specs/<feature>/discovery.md` and **stops for human validation of intent**) → `spec_ready` (via `spec_author`) → **human approval** → `approved` → `in_progress` (implementer + reviewer, no further questions) → `done`. Each requirement maps to a test.
+<% } else { %>- Features flow `pending → in_progress` (implementer + reviewer) → `done`. Each change ships with its test.
+<% } %>
+
+## Roles (`.opencode/agents/`)
+
+| Agent | Mode | Model | Responsibility |
+| --- | --- | --- | --- |
+| `leader` | primary | <%= it.agents.leader.model ?? "default" %> | Orchestrates; never edits code. |
+| `implementer` | subagent | <%= it.agents.implementer.model ?? "default" %> | Implements one feature + its tests; self-verifies. |
+| `reviewer` | subagent | <%= it.agents.reviewer.model ?? "default" %> | Approves/rejects against docs + checkpoints. |
+| `security-reviewer` | subagent | <%= it.agents["security-reviewer"].model ?? "default" %> | Audits secrets, input handling, dependencies. |
+<% if (it.isSdd) { %>| `spec_author` | subagent | <%= it.agents.spec_author.model ?? "default" %> | Writes EARS requirements, design, tasks. |
+<% } %>
+`default` = opencode's configured model. To pin a model per role, set `agents.<role>.model` in `reins.config.json` to a full `provider/model` ID (e.g. `anthropic/claude-sonnet-4-5`).
+
+## Where things live
+
+- `docs/` — `architecture.md`, `conventions.md`, `verification.md`, `security.md`<% if (it.isSdd) { %>, `sdd-workflow.md`<% } %>.
+- `feature_list.json` — the work queue and its state machine.
+- `progress/` — living session state (`current.md`), append-only `history.md`, and subagent reports.
+- `CHECKPOINTS.md` — the objective acceptance checklist the reviewer walks.
+- `reins.config.json` — stack, commands, and the checks `<%= it.verifyCmd %>` runs.
+- `.opencode/` — agents, commands, and the `reins-verify` gate plugin.
+
+## Workflow
+
+**Epic (optional):** `/brainstorm <idea>` decomposes a rough idea into several features; after the human approves the breakdown it queues them as `pending` (honoring `dependsOn`).<% if (it.isSdd) { %> It then walks **each feature** through discovery → open questions → spec → chat approval, ending with every feature `approved` — so implementation runs gate-free via `/next-feature`, one feature per invocation.<% } else { %> Then each feature runs the per-feature flow below, one at a time.<% } %>
+
+<% if (it.isSdd) { %>`pending` → **leader** writes `discovery.md` → `needs_clarification` → **human validates intent** → **spec_author** writes spec → `spec_ready` → **human approves** → `approved` → `/next-feature` → `in_progress` → **implementer** + **reviewer** → `done`.
+<% } else { %>`pending` → `in_progress` → **implementer** writes code + tests → **reviewer** (+ **security-reviewer**) → `done`.
+<% } %>
+One feature `in_progress` at a time. Every result is written to `progress/`; replies to the leader are one-line references like `done -> progress/impl_<feature>.md`.
+
+**Batch (optional):** `/autopilot` is the batch form of `/next-feature` — it implements the whole ready queue (`<% if (it.isSdd) { %>approved<% } else { %>pending<% } %>` features whose deps are `done`) back-to-back, one at a time, pausing once for a go-ahead and halting on the first blocker.
+
+## Detected stack
+
+- Language: `<%= it.language %>`<% if (it.packageManager) { %> · package manager: `<%= it.packageManager %>`<% } %>
+- Frameworks: <%= it.frameworksText %>
+- Test: `<%= it.commands.test || "(configure in reins.config.json)" %>`
+
+## Session close checklist
+
+1. `<%= it.verifyCmd %>` is green.
+2. Finished feature is marked `done` in `feature_list.json`.
+3. Session summary moved from `progress/current.md` into `progress/history.md` (append-only).
+4. No stray `.tmp` files, debug prints, or unexplained TODOs left behind.

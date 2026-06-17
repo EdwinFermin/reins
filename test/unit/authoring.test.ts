@@ -7,13 +7,16 @@ import { addFeature } from "../../src/core/features/add-feature";
 import { runInit } from "../../src/core/init/run";
 import { getStatus } from "../../src/core/status/run";
 
-async function inited(preset: "lite" | "sdd" = "sdd"): Promise<string> {
+async function inited(
+  preset: "lite" | "sdd" = "sdd",
+  runtime: "claude" | "opencode" = "claude",
+): Promise<string> {
   const cwd = await mkdtemp(path.join(os.tmpdir(), "reins-authoring-"));
   await writeFile(
     path.join(cwd, "package.json"),
     JSON.stringify({ name: "demo", scripts: { test: "node --version" } }),
   );
-  await runInit({ cwd, preset, harnessVersion: "0.1.0", installGitHook: false });
+  await runInit({ cwd, preset, runtime, harnessVersion: "0.1.0", installGitHook: false });
   return cwd;
 }
 
@@ -95,6 +98,29 @@ describe("addAgent", () => {
     const cwd = await inited("lite");
     expect((await addAgent({ cwd, role: "reviewer" })).added).toBe(false); // created by init
     expect((await addAgent({ cwd, role: "nope" })).added).toBe(false);
+  });
+
+  it("writes opencode agents to .opencode/agents with opencode frontmatter", async () => {
+    const cwd = await inited("lite", "opencode");
+    // Aliases don't translate to opencode, so a full provider/model ID passes
+    // through while a bare alias is omitted.
+    const ok = await addAgent({
+      cwd,
+      role: "perf-reviewer",
+      from: "reviewer",
+      model: "anthropic/claude-sonnet-4-5",
+    });
+    expect(ok.added).toBe(true);
+    const text = await readFile(path.join(cwd, ".opencode/agents/perf-reviewer.md"), "utf8");
+    const frontmatter = text.slice(0, text.indexOf("\n---", 3));
+    expect(frontmatter).toContain("mode: subagent");
+    expect(frontmatter).toContain("model: anthropic/claude-sonnet-4-5");
+    expect(frontmatter).not.toContain("name:"); // opencode identifies agents by filename
+
+    const aliased = await addAgent({ cwd, role: "scout", from: "leader", model: "haiku" });
+    expect(aliased.added).toBe(true);
+    const scout = await readFile(path.join(cwd, ".opencode/agents/scout.md"), "utf8");
+    expect(scout.slice(0, scout.indexOf("\n---", 3))).not.toContain("model:");
   });
 });
 

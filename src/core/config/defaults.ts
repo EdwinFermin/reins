@@ -1,5 +1,11 @@
 import type { DetectedCommand, StackProfile } from "../detect/types";
-import { ReinsConfigSchema, type CheckId, type Preset, type ReinsConfig } from "./schema";
+import {
+  ReinsConfigSchema,
+  type CheckId,
+  type Preset,
+  type ReinsConfig,
+  type Runtime,
+} from "./schema";
 
 function cmdValue(c?: DetectedCommand): string | null {
   return c ? c.value : null;
@@ -9,9 +15,11 @@ function cmdValue(c?: DetectedCommand): string | null {
 export function buildDefaultConfig(opts: {
   profile: StackProfile;
   preset: Preset;
+  runtime?: Runtime;
   harnessVersion: string;
 }): ReinsConfig {
   const { profile, preset, harnessVersion } = opts;
+  const runtime: Runtime = opts.runtime ?? "claude";
 
   const required: CheckId[] =
     preset === "sdd"
@@ -24,6 +32,7 @@ export function buildDefaultConfig(opts: {
     $schema: "https://unpkg.com/reins/schema/reins.config.schema.json",
     harnessVersion,
     preset,
+    runtime,
     stack: {
       language: profile.language,
       packageManager: profile.packageManager,

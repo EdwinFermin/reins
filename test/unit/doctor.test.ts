@@ -61,6 +61,32 @@ describe("runDoctor", () => {
     expect(report.updateAvailable).toBe(true);
     expect(report.results.find((r) => r.id === "version")?.status).toBe("warn");
   });
+
+  it("checks the opencode plugin/config and tolerates the missing Claude tree", async () => {
+    const cwd = await mkdtemp(path.join(os.tmpdir(), "reins-doctor-oc-"));
+    await writeFile(
+      path.join(cwd, "package.json"),
+      JSON.stringify({ name: "demo", scripts: { test: "node --version" } }),
+    );
+    await runInit({
+      cwd,
+      preset: "sdd",
+      runtime: "opencode",
+      harnessVersion: "0.1.0",
+      installGitHook: false,
+    });
+
+    const healthy = await runDoctor(cwd, "0.1.0");
+    expect(healthy.ok).toBe(true);
+    expect(healthy.results.find((r) => r.id === "gate")?.status).toBe("ok");
+    expect(healthy.results.find((r) => r.id === "opencode-config")?.status).toBe("ok");
+
+    // Removing the verify plugin fails the gate check.
+    await rm(path.join(cwd, ".opencode/plugins/reins-verify.ts"));
+    const broken = await runDoctor(cwd, "0.1.0");
+    expect(broken.ok).toBe(false);
+    expect(broken.results.find((r) => r.id === "gate")?.status).toBe("fail");
+  });
 });
 
 describe("runDoctorFix", () => {

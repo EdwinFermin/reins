@@ -1,7 +1,7 @@
 import path from "node:path";
 import { Command, Option } from "clipanion";
 import { isCancel, select } from "@clack/prompts";
-import type { Preset } from "../core/config/schema";
+import { RUNTIMES, type Preset, type Runtime } from "../core/config/schema";
 import { runInit, type RunInitResult } from "../core/init/run";
 import { REINS_VERSION } from "../index";
 
@@ -31,6 +31,9 @@ export class InitCommand extends Command {
   });
 
   preset = Option.String("--preset", { description: "Harness preset: lite | sdd" });
+  runtime = Option.String("--runtime", {
+    description: "Target agent runtime: claude | opencode",
+  });
   cwd = Option.String("--cwd", { description: "Run as if started in this directory" });
   yes = Option.Boolean("--yes,-y", false, {
     description: "Non-interactive; use detection + defaults",
@@ -54,10 +57,17 @@ export class InitCommand extends Command {
       this.context.stderr.write(`Unknown preset "${this.preset}". Use "lite" or "sdd".\n`);
       return 1;
     }
+    if (this.runtime != null && !(RUNTIMES as readonly string[]).includes(this.runtime)) {
+      this.context.stderr.write(
+        `Unknown runtime "${this.runtime}". Use ${RUNTIMES.join(" or ")}.\n`,
+      );
+      return 1;
+    }
+
+    const interactive = !this.yes && Boolean(process.stdout.isTTY) && !this.json;
 
     let preset = this.preset as Preset | undefined;
     if (!preset) {
-      const interactive = !this.yes && Boolean(process.stdout.isTTY) && !this.json;
       if (interactive) {
         const chosen = await promptPreset();
         if (chosen == null) {
@@ -70,9 +80,24 @@ export class InitCommand extends Command {
       }
     }
 
+    let runtime = this.runtime as Runtime | undefined;
+    if (!runtime) {
+      if (interactive) {
+        const chosen = await promptRuntime();
+        if (chosen == null) {
+          this.context.stderr.write("Cancelled.\n");
+          return 1;
+        }
+        runtime = chosen;
+      } else {
+        runtime = "claude";
+      }
+    }
+
     const result = await runInit({
       cwd,
       preset,
+      runtime,
       harnessVersion: REINS_VERSION,
       dryRun: this.dryRun,
       force: this.force,
@@ -108,6 +133,23 @@ async function promptPreset(): Promise<Preset | null> {
   return choice as Preset;
 }
 
+async function promptRuntime(): Promise<Runtime | null> {
+  const choice = await select({
+    message: "Which agent runtime?",
+    options: [
+      {
+        value: "claude",
+        label: "claude",
+        hint: "Claude Code (.claude/, CLAUDE.md, settings hooks)",
+      },
+      { value: "opencode", label: "opencode", hint: ".opencode/, AGENTS.md, verify plugin" },
+    ],
+    initialValue: "claude",
+  });
+  if (isCancel(choice)) return null;
+  return choice as Runtime;
+}
+
 function countActions(result: RunInitResult): Record<string, number> {
   const counts: Record<string, number> = {};
   for (const outcome of result.outcomes) {
@@ -119,6 +161,7 @@ function countActions(result: RunInitResult): Record<string, number> {
 function serialize(result: RunInitResult, cwd: string, dryRun: boolean): unknown {
   return {
     preset: result.preset,
+    runtime: result.runtime,
     cwd,
     dryRun,
     stack: {
@@ -142,7 +185,7 @@ function renderSummary(result: RunInitResult, cwd: string, dryRun: boolean): str
 
   lines.push("");
   lines.push(
-    `${prefix}Reins ${result.preset} harness ${dryRun ? "would be installed" : "installed"} in ${cwd}`,
+    `${prefix}Reins ${result.preset} harness (${result.runtime}) ${dryRun ? "would be installed" : "installed"} in ${cwd}`,
   );
   lines.push(`  Stack: ${result.profile.language}${pm} · frameworks: ${frameworks}`);
 
@@ -165,7 +208,11 @@ function renderSummary(result: RunInitResult, cwd: string, dryRun: boolean): str
 
   lines.push("");
   lines.push("Next steps:");
-  lines.push("  • Open Claude Code — the agent will act as the `leader`.");
+  lines.push(
+    result.runtime === "opencode"
+      ? "  • Open opencode — the `leader` is the primary agent."
+      : "  • Open Claude Code — the agent will act as the `leader`.",
+  );
   lines.push("  • reins doctor      check the harness is healthy");
   lines.push("  • reins verify      run the verification gate");
   if (result.preset === "sdd") {

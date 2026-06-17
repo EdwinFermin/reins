@@ -10,7 +10,74 @@ interface TemplateEntry {
   kind?: FileKind;
 }
 
-const COMMON: TemplateEntry[] = [
+/** Files that are identical regardless of the target runtime (docs, state, CI). */
+const NEUTRAL: TemplateEntry[] = [
+  { id: "checkpoints", template: "common/CHECKPOINTS.md.eta", dest: "CHECKPOINTS.md" },
+  {
+    id: "docs-architecture",
+    template: "common/docs/architecture.md.eta",
+    dest: "docs/architecture.md",
+  },
+  {
+    id: "docs-conventions",
+    template: "common/docs/conventions.md.eta",
+    dest: "docs/conventions.md",
+  },
+  {
+    id: "docs-verification",
+    template: "common/docs/verification.md.eta",
+    dest: "docs/verification.md",
+  },
+  { id: "docs-security", template: "common/docs/security.md.eta", dest: "docs/security.md" },
+  {
+    id: "progress-current",
+    template: "common/progress/current.md.eta",
+    dest: "progress/current.md",
+    kind: "create-only",
+  },
+  {
+    id: "progress-history",
+    template: "common/progress/history.md.eta",
+    dest: "progress/history.md",
+    kind: "create-only",
+  },
+  { id: "gitignore", template: "common/gitignore.eta", dest: ".gitignore", kind: "gitignore" },
+  {
+    id: "ci",
+    template: "common/ci/reins-verify.yml.eta",
+    dest: ".github/workflows/reins-verify.yml",
+    kind: "ci-workflow",
+  },
+  { id: "precommit", template: "common/hooks/pre-commit.eta", dest: ".reins/hooks/pre-commit" },
+];
+
+/** Runtime-neutral SDD files (specs scaffolding + workflow doc). */
+const NEUTRAL_SDD: TemplateEntry[] = [
+  { id: "docs-sdd", template: "sdd/docs/sdd-workflow.md.eta", dest: "docs/sdd-workflow.md" },
+  {
+    id: "spec-discovery",
+    template: "sdd/specs/_template/discovery.md.eta",
+    dest: "specs/_template/discovery.md",
+  },
+  {
+    id: "spec-requirements",
+    template: "sdd/specs/_template/requirements.md.eta",
+    dest: "specs/_template/requirements.md",
+  },
+  {
+    id: "spec-design",
+    template: "sdd/specs/_template/design.md.eta",
+    dest: "specs/_template/design.md",
+  },
+  {
+    id: "spec-tasks",
+    template: "sdd/specs/_template/tasks.md.eta",
+    dest: "specs/_template/tasks.md",
+  },
+];
+
+/** Claude Code runtime: `.claude/` tree + CLAUDE.md + AGENTS.md map. */
+const CLAUDE: TemplateEntry[] = [
   {
     id: "agent-leader",
     template: "common/.claude/agents/leader.md.eta",
@@ -51,48 +118,16 @@ const COMMON: TemplateEntry[] = [
     template: "common/.claude/commands/brainstorm.md.eta",
     dest: ".claude/commands/brainstorm.md",
   },
+  {
+    id: "cmd-autopilot",
+    template: "common/.claude/commands/autopilot.md.eta",
+    dest: ".claude/commands/autopilot.md",
+  },
   { id: "claude-md", template: "common/CLAUDE.md.eta", dest: "CLAUDE.md", kind: "claude-md" },
   { id: "agents-md", template: "common/AGENTS.md.eta", dest: "AGENTS.md" },
-  { id: "checkpoints", template: "common/CHECKPOINTS.md.eta", dest: "CHECKPOINTS.md" },
-  {
-    id: "docs-architecture",
-    template: "common/docs/architecture.md.eta",
-    dest: "docs/architecture.md",
-  },
-  {
-    id: "docs-conventions",
-    template: "common/docs/conventions.md.eta",
-    dest: "docs/conventions.md",
-  },
-  {
-    id: "docs-verification",
-    template: "common/docs/verification.md.eta",
-    dest: "docs/verification.md",
-  },
-  { id: "docs-security", template: "common/docs/security.md.eta", dest: "docs/security.md" },
-  {
-    id: "progress-current",
-    template: "common/progress/current.md.eta",
-    dest: "progress/current.md",
-    kind: "create-only",
-  },
-  {
-    id: "progress-history",
-    template: "common/progress/history.md.eta",
-    dest: "progress/history.md",
-    kind: "create-only",
-  },
-  { id: "gitignore", template: "common/gitignore.eta", dest: ".gitignore", kind: "gitignore" },
-  {
-    id: "ci",
-    template: "common/ci/reins-verify.yml.eta",
-    dest: ".github/workflows/reins-verify.yml",
-    kind: "ci-workflow",
-  },
-  { id: "precommit", template: "common/hooks/pre-commit.eta", dest: ".reins/hooks/pre-commit" },
 ];
 
-const SDD: TemplateEntry[] = [
+const CLAUDE_SDD: TemplateEntry[] = [
   {
     id: "agent-spec-author",
     template: "sdd/.claude/agents/spec_author.md.eta",
@@ -113,26 +148,88 @@ const SDD: TemplateEntry[] = [
     template: "sdd/.claude/commands/validate-discovery.md.eta",
     dest: ".claude/commands/validate-discovery.md",
   },
-  { id: "docs-sdd", template: "sdd/docs/sdd-workflow.md.eta", dest: "docs/sdd-workflow.md" },
+];
+
+/** opencode runtime: `.opencode/` tree + AGENTS.md (rules) + verify plugin. */
+const OPENCODE: TemplateEntry[] = [
   {
-    id: "spec-discovery",
-    template: "sdd/specs/_template/discovery.md.eta",
-    dest: "specs/_template/discovery.md",
+    id: "agent-leader",
+    template: "common/.opencode/agents/leader.md.eta",
+    dest: ".opencode/agents/leader.md",
   },
   {
-    id: "spec-requirements",
-    template: "sdd/specs/_template/requirements.md.eta",
-    dest: "specs/_template/requirements.md",
+    id: "agent-implementer",
+    template: "common/.opencode/agents/implementer.md.eta",
+    dest: ".opencode/agents/implementer.md",
   },
   {
-    id: "spec-design",
-    template: "sdd/specs/_template/design.md.eta",
-    dest: "specs/_template/design.md",
+    id: "agent-reviewer",
+    template: "common/.opencode/agents/reviewer.md.eta",
+    dest: ".opencode/agents/reviewer.md",
   },
   {
-    id: "spec-tasks",
-    template: "sdd/specs/_template/tasks.md.eta",
-    dest: "specs/_template/tasks.md",
+    id: "agent-security-reviewer",
+    template: "common/.opencode/agents/security-reviewer.md.eta",
+    dest: ".opencode/agents/security-reviewer.md",
+  },
+  {
+    id: "cmd-verify",
+    template: "common/.opencode/commands/reins-verify.md.eta",
+    dest: ".opencode/commands/reins-verify.md",
+  },
+  {
+    id: "cmd-status",
+    template: "common/.opencode/commands/reins-status.md.eta",
+    dest: ".opencode/commands/reins-status.md",
+  },
+  {
+    id: "cmd-next",
+    template: "common/.opencode/commands/next-feature.md.eta",
+    dest: ".opencode/commands/next-feature.md",
+  },
+  {
+    id: "cmd-brainstorm",
+    template: "common/.opencode/commands/brainstorm.md.eta",
+    dest: ".opencode/commands/brainstorm.md",
+  },
+  {
+    id: "cmd-autopilot",
+    template: "common/.opencode/commands/autopilot.md.eta",
+    dest: ".opencode/commands/autopilot.md",
+  },
+  {
+    id: "opencode-plugin",
+    template: "common/.opencode/plugins/reins-verify.ts.eta",
+    dest: ".opencode/plugins/reins-verify.ts",
+  },
+  {
+    id: "agents-md",
+    template: "common/AGENTS.opencode.md.eta",
+    dest: "AGENTS.md",
+    kind: "agents-md",
+  },
+];
+
+const OPENCODE_SDD: TemplateEntry[] = [
+  {
+    id: "agent-spec-author",
+    template: "sdd/.opencode/agents/spec_author.md.eta",
+    dest: ".opencode/agents/spec_author.md",
+  },
+  {
+    id: "cmd-new-spec",
+    template: "sdd/.opencode/commands/new-spec.md.eta",
+    dest: ".opencode/commands/new-spec.md",
+  },
+  {
+    id: "cmd-approve-spec",
+    template: "sdd/.opencode/commands/approve-spec.md.eta",
+    dest: ".opencode/commands/approve-spec.md",
+  },
+  {
+    id: "cmd-validate-discovery",
+    template: "sdd/.opencode/commands/validate-discovery.md.eta",
+    dest: ".opencode/commands/validate-discovery.md",
   },
 ];
 
@@ -178,6 +275,20 @@ export function buildSettings(ctx: TemplateContext): unknown {
   };
 }
 
+/**
+ * The opencode `opencode.json` object. The gate runs through the generated
+ * `.opencode/plugins/reins-verify.ts` plugin (auto-loaded), so config only
+ * carries the schema link, the AGENTS.md instruction file, and the
+ * stack-aware permission policy.
+ */
+export function buildOpencodeConfig(ctx: TemplateContext): unknown {
+  return {
+    $schema: "https://opencode.ai/config.json",
+    instructions: ["AGENTS.md"],
+    permission: ctx.opencodePermission,
+  };
+}
+
 /** The initial feature_list.json state machine. */
 export function buildInitialFeatureList(): unknown {
   return {
@@ -200,9 +311,17 @@ export function buildInitialFeatureList(): unknown {
   };
 }
 
-/** Render every file the harness installs for the given context + preset. */
+/** Render every file the harness installs for the given context + preset + runtime. */
 export function buildHarnessFiles(config: ReinsConfig, ctx: TemplateContext): RenderedFile[] {
-  const entries = [...COMMON, ...(ctx.isSdd ? SDD : [])];
+  const isOpencode = config.runtime === "opencode";
+  const runtimeBase = isOpencode ? OPENCODE : CLAUDE;
+  const runtimeSdd = isOpencode ? OPENCODE_SDD : CLAUDE_SDD;
+
+  const entries = [
+    ...NEUTRAL,
+    ...runtimeBase,
+    ...(ctx.isSdd ? [...NEUTRAL_SDD, ...runtimeSdd] : []),
+  ];
   const data = ctx as unknown as Record<string, unknown>;
 
   const files: RenderedFile[] = entries.map((entry) => ({
@@ -212,12 +331,22 @@ export function buildHarnessFiles(config: ReinsConfig, ctx: TemplateContext): Re
     kind: entry.kind ?? "plain",
   }));
 
-  files.push({
-    templateId: "settings",
-    destRel: ".claude/settings.json",
-    kind: "settings-json",
-    content: JSON.stringify(buildSettings(ctx), null, 2) + "\n",
-  });
+  if (isOpencode) {
+    files.push({
+      templateId: "opencode-config",
+      destRel: "opencode.json",
+      kind: "settings-json",
+      content: JSON.stringify(buildOpencodeConfig(ctx), null, 2) + "\n",
+    });
+  } else {
+    files.push({
+      templateId: "settings",
+      destRel: ".claude/settings.json",
+      kind: "settings-json",
+      content: JSON.stringify(buildSettings(ctx), null, 2) + "\n",
+    });
+  }
+
   files.push({
     templateId: "reins-config",
     destRel: "reins.config.json",

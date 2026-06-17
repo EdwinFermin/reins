@@ -58,6 +58,17 @@ describe("ReinsConfig schema", () => {
     expect(ReinsConfigSchema.safeParse({ ...base, agents: { bogus: {} } }).success).toBe(false);
   });
 
+  it("accepts the opencode runtime and rejects unknown runtimes", () => {
+    const base = {
+      harnessVersion: "0.1.0",
+      preset: "lite",
+      stack: { language: "node" },
+      commands: {},
+    };
+    expect(ReinsConfigSchema.parse({ ...base, runtime: "opencode" }).runtime).toBe("opencode");
+    expect(ReinsConfigSchema.safeParse({ ...base, runtime: "cursor" }).success).toBe(false);
+  });
+
   it("rejects bad presets and unknown top-level keys", () => {
     expect(
       ReinsConfigSchema.safeParse({
@@ -122,5 +133,15 @@ describe("buildDefaultConfig", () => {
       harnessVersion: "0.1.0",
     });
     expect(cfg.verify.required).not.toContain("traceability");
+  });
+
+  it("defaults runtime to claude and honors an explicit opencode runtime", () => {
+    const base = {
+      profile: { language: "node" as const, frameworks: [], commands: {} },
+      preset: "lite" as const,
+      harnessVersion: "0.1.0",
+    };
+    expect(buildDefaultConfig(base).runtime).toBe("claude");
+    expect(buildDefaultConfig({ ...base, runtime: "opencode" }).runtime).toBe("opencode");
   });
 });

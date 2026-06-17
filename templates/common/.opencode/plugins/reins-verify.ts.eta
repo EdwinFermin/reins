@@ -1,0 +1,37 @@
+/**
+ * Reins verification gate for opencode.
+ *
+ * opencode has no settings.json command-hooks, so the gate is wired here as an
+ * auto-loaded plugin:
+ *   - session.created -> harness status report (≈ Claude SessionStart)
+ *   - file.edited     -> quick gate on changed files (≈ Claude PostToolUse)
+ *   - session.idle    -> full gate when the session goes idle (≈ Claude Stop)
+ *
+ * The `--hook` names are shared with Claude Code so `verify.perHook` in
+ * reins.config.json applies to both runtimes.
+ *
+ * NOTE: unlike Claude Code's Stop hook (which hard-blocks via exit code 2), an
+ * opencode plugin cannot hard-stop a finished session. This runs the gate and
+ * surfaces a red tree loudly — treat a failing gate as "the work is not done".
+ */
+export const ReinsVerify = async ({ $ }) => {
+  const run = async (args) => {
+    try {
+      await $`npx reins ${args}`;
+    } catch {
+      // The gate's own output reports the failure; never crash the session.
+    }
+  };
+
+  return {
+    "session.created": async () => {
+      await run(["status", "--hook", "SessionStart"]);
+    },
+    "file.edited": async () => {
+      await run(["verify", "--hook", "PostToolUse", "--changed"]);
+    },
+    "session.idle": async () => {
+      await run(["verify", "--hook", "Stop"]);
+    },
+  };
+};

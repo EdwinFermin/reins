@@ -1,7 +1,7 @@
 import { chmod, copyFile, mkdir } from "node:fs/promises";
 import path from "node:path";
 import { buildDefaultConfig } from "../config/defaults";
-import type { Preset } from "../config/schema";
+import type { Preset, Runtime } from "../config/schema";
 import { detectStack } from "../detect";
 import type { StackProfile } from "../detect/types";
 import { applyFiles, type WriteOutcome } from "../fs/idempotent-write";
@@ -13,6 +13,7 @@ import { buildTemplateContext } from "../render/context";
 export interface RunInitOptions {
   cwd: string;
   preset: Preset;
+  runtime?: Runtime;
   harnessVersion: string;
   dryRun?: boolean;
   force?: boolean;
@@ -22,6 +23,7 @@ export interface RunInitOptions {
 
 export interface RunInitResult {
   preset: Preset;
+  runtime: Runtime;
   profile: StackProfile;
   outcomes: WriteOutcome[];
   hasGit: boolean;
@@ -35,10 +37,12 @@ function stamp(): string {
 /** Detect the stack, render the harness, and write it idempotently. */
 export async function runInit(opts: RunInitOptions): Promise<RunInitResult> {
   const { cwd } = opts;
+  const runtime: Runtime = opts.runtime ?? "claude";
   const profile = await detectStack(cwd);
   const config = buildDefaultConfig({
     profile,
     preset: opts.preset,
+    runtime,
     harnessVersion: opts.harnessVersion,
   });
   const ctx = buildTemplateContext(config, {
@@ -60,7 +64,7 @@ export async function runInit(opts: RunInitOptions): Promise<RunInitResult> {
   const manifest: HarnessManifest = {
     harnessVersion: opts.harnessVersion,
     preset: opts.preset,
-    runtime: "claude",
+    runtime,
     generatedAt: new Date().toISOString(),
     files: outcomes.map((o) => ({ path: o.destRel, templateId: o.templateId, hash: o.hash })),
   };
@@ -79,5 +83,5 @@ export async function runInit(opts: RunInitOptions): Promise<RunInitResult> {
     }
   }
 
-  return { preset: opts.preset, profile, outcomes, hasGit, gitHookInstalled };
+  return { preset: opts.preset, runtime, profile, outcomes, hasGit, gitHookInstalled };
 }

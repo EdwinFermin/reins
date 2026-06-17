@@ -108,44 +108,71 @@ export async function runDoctor(cwd: string, cliVersion: string): Promise<Doctor
   }
 
   const cfg = config;
+  const isOpencode = cfg.runtime === "opencode";
 
-  // Hooks
-  const settingsText = await readTextIfExists(path.join(cwd, ".claude/settings.json"));
-  if (!settingsText) {
-    results.push(result("settings", "fail", ".claude/settings.json missing"));
+  // Gate wiring: Claude Code uses settings.json hooks; opencode uses a plugin.
+  if (isOpencode) {
+    const pluginText = await readTextIfExists(path.join(cwd, ".opencode/plugins/reins-verify.ts"));
+    if (!pluginText) {
+      results.push(result("gate", "fail", ".opencode/plugins/reins-verify.ts missing"));
+    } else if (!pluginText.includes("npx reins")) {
+      results.push(result("gate", "warn", "verify plugin present but does not run the reins gate"));
+    } else {
+      results.push(result("gate", "ok", "verify plugin wired"));
+    }
+    const configText = await readTextIfExists(path.join(cwd, "opencode.json"));
+    if (!configText) {
+      results.push(result("opencode-config", "fail", "opencode.json missing"));
+    } else {
+      try {
+        JSON.parse(configText);
+        results.push(result("opencode-config", "ok", "opencode.json valid"));
+      } catch {
+        results.push(result("opencode-config", "fail", "opencode.json is not valid JSON"));
+      }
+    }
   } else {
-    try {
-      const settings = JSON.parse(settingsText) as { hooks?: { Stop?: unknown } };
-      const hasStop = JSON.stringify(settings.hooks?.Stop ?? "").includes("reins verify");
-      results.push(
-        result(
-          "settings",
-          hasStop ? "ok" : "warn",
-          hasStop ? "hooks wired" : "Reins Stop hook not found",
-        ),
-      );
-    } catch {
-      results.push(result("settings", "fail", ".claude/settings.json is not valid JSON"));
+    const settingsText = await readTextIfExists(path.join(cwd, ".claude/settings.json"));
+    if (!settingsText) {
+      results.push(result("settings", "fail", ".claude/settings.json missing"));
+    } else {
+      try {
+        const settings = JSON.parse(settingsText) as { hooks?: { Stop?: unknown } };
+        const hasStop = JSON.stringify(settings.hooks?.Stop ?? "").includes("reins verify");
+        results.push(
+          result(
+            "settings",
+            hasStop ? "ok" : "warn",
+            hasStop ? "hooks wired" : "Reins Stop hook not found",
+          ),
+        );
+      } catch {
+        results.push(result("settings", "fail", ".claude/settings.json is not valid JSON"));
+      }
     }
   }
 
   // Agents (per preset) with valid frontmatter
+  const agentsDir = isOpencode ? ".opencode/agents" : ".claude/agents";
+  const requiredKeys = isOpencode ? ["description", "mode"] : ["name", "description", "tools"];
   const agents = ["leader", "implementer", "reviewer", "security-reviewer"];
   if (cfg.preset === "sdd") agents.push("spec_author");
   for (const agent of agents) {
-    const text = await readTextIfExists(path.join(cwd, ".claude/agents", `${agent}.md`));
-    const policyIssue = text ? agentPolicyIssue(text) : null;
-    if (!text) results.push(result(`agent:${agent}`, "fail", `.claude/agents/${agent}.md missing`));
-    else if (!hasFrontmatterKeys(text, ["name", "description", "tools"]))
+    const text = await readTextIfExists(path.join(cwd, agentsDir, `${agent}.md`));
+    // opencode models are `provider/model` strings; the alias-shaped policy
+    // check doesn't apply, so it is skipped there.
+    const policyIssue = text && !isOpencode ? agentPolicyIssue(text) : null;
+    if (!text) results.push(result(`agent:${agent}`, "fail", `${agentsDir}/${agent}.md missing`));
+    else if (!hasFrontmatterKeys(text, requiredKeys))
       results.push(result(`agent:${agent}`, "warn", `${agent}.md frontmatter incomplete`));
     else if (policyIssue)
       results.push(result(`agent:${agent}`, "warn", `${agent}.md: ${policyIssue}`));
     else results.push(result(`agent:${agent}`, "ok", `${agent}`));
   }
 
-  // Core files + docs
+  // Core files + docs (opencode has no CLAUDE.md; AGENTS.md is its rules file)
   const coreFiles = [
-    "CLAUDE.md",
+    ...(isOpencode ? [] : ["CLAUDE.md"]),
     "AGENTS.md",
     "CHECKPOINTS.md",
     "docs/architecture.md",

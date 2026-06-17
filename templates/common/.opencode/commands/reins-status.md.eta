@@ -1,0 +1,5 @@
+---
+description: Show the Reins harness status (active feature, queue, telemetry).
+---
+
+Run `npx reins status` and summarize: the active feature, the queue of `pending`/`approved` features (`approved` = spec approved, ready to implement), the latest subagent reports under `progress/`, and the session's subagent/token telemetry if available.

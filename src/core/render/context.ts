@@ -5,6 +5,7 @@ import {
   type CommandSpec,
   type Preset,
   type ReinsConfig,
+  type Runtime,
 } from "../config/schema";
 
 export interface ResolvedCommands {
@@ -35,13 +36,35 @@ export interface TemplateContext {
   frameworksText: string;
   commands: ResolvedCommands;
   verifyCmd: string;
+  /** Claude Code `permissions.allow` allowlist (used by `.claude/settings.json`). */
   permissionsAllow: string[];
+  /** opencode `permission` object (used by `opencode.json`). */
+  opencodePermission: OpencodePermission;
   agents: Record<AgentRole, ResolvedAgentPolicy>;
 }
 
-function resolveAgentPolicy(p: AgentPolicy | undefined): ResolvedAgentPolicy {
-  const model = p?.model && p.model !== "inherit" ? p.model : null;
-  return { model, effort: p?.effort ?? null };
+export interface OpencodePermission {
+  edit: "allow" | "ask" | "deny";
+  webfetch: "allow" | "ask" | "deny";
+  bash: Record<string, "allow" | "ask" | "deny">;
+}
+
+/**
+ * Resolve a role's model for the target runtime.
+ *
+ * Claude Code accepts Reins aliases (`sonnet`/`opus`/…) and full model IDs.
+ * opencode expects a `provider/model` string, so Reins aliases don't translate;
+ * we pass through only explicit `provider/model` IDs and otherwise omit the
+ * field (the agent then uses opencode's configured default). `effort` has no
+ * opencode agent-frontmatter equivalent, so it is dropped there.
+ */
+function resolveAgentPolicy(p: AgentPolicy | undefined, runtime: Runtime): ResolvedAgentPolicy {
+  const raw = p?.model && p.model !== "inherit" ? p.model : null;
+  if (runtime === "opencode") {
+    const model = raw && raw.includes("/") ? raw : null;
+    return { model, effort: null };
+  }
+  return { model: raw, effort: p?.effort ?? null };
 }
 
 function commandToString(c: CommandSpec | null | undefined): string | null {
@@ -49,45 +72,61 @@ function commandToString(c: CommandSpec | null | undefined): string | null {
   return typeof c === "string" ? c : c.cmd;
 }
 
-/** Build the Claude Code `permissions.allow` allowlist for the detected stack. */
-export function buildPermissionsAllow(language: string, pm: string): string[] {
-  const allow = [
-    "Bash(npx reins:*)",
-    "Bash(reins:*)",
-    "Bash(git status:*)",
-    "Bash(git diff:*)",
-    "Bash(git add:*)",
-    "Bash(git log:*)",
-    "Bash(git commit:*)",
+/** Bare command prefixes the harness should be allowed to run for the detected stack. */
+function stackCommandPrefixes(language: string, pm: string): string[] {
+  const prefixes = [
+    "npx reins",
+    "reins",
+    "git status",
+    "git diff",
+    "git add",
+    "git log",
+    "git commit",
   ];
 
   if (language === "node") {
     const m = pm || "npm";
-    allow.push(
-      `Bash(${m}:*)`,
-      `Bash(${m} run:*)`,
-      `Bash(${m} test:*)`,
-      `Bash(${m} audit:*)`,
-      "Bash(npx vitest:*)",
-      "Bash(npx eslint:*)",
-      "Bash(npx tsc:*)",
-      "Bash(node:*)",
+    prefixes.push(
+      m,
+      `${m} run`,
+      `${m} test`,
+      `${m} audit`,
+      "npx vitest",
+      "npx eslint",
+      "npx tsc",
+      "node",
     );
   } else if (language === "python") {
     const prefix = pm === "uv" ? "uv run " : pm === "poetry" ? "poetry run " : "";
-    allow.push(
-      `Bash(${prefix}pytest:*)`,
-      `Bash(${prefix}ruff:*)`,
-      `Bash(${prefix}mypy:*)`,
-      "Bash(pip-audit:*)",
-      "Bash(python:*)",
-      "Bash(python3:*)",
+    prefixes.push(
+      `${prefix}pytest`,
+      `${prefix}ruff`,
+      `${prefix}mypy`,
+      "pip-audit",
+      "python",
+      "python3",
     );
-    if (pm === "uv") allow.push("Bash(uv:*)", "Bash(uv run:*)");
-    if (pm === "poetry") allow.push("Bash(poetry:*)", "Bash(poetry run:*)");
+    if (pm === "uv") prefixes.push("uv", "uv run");
+    if (pm === "poetry") prefixes.push("poetry", "poetry run");
   }
 
-  return allow;
+  return prefixes;
+}
+
+/** Build the Claude Code `permissions.allow` allowlist for the detected stack. */
+export function buildPermissionsAllow(language: string, pm: string): string[] {
+  return stackCommandPrefixes(language, pm).map((p) => `Bash(${p}:*)`);
+}
+
+/**
+ * Build the opencode `permission` object for the detected stack: edit/webfetch
+ * are allowed, and bash defaults to `ask` with the stack's commands allowed
+ * outright — mirroring the Claude allowlist's "auto-run these, confirm the rest".
+ */
+export function buildOpencodePermission(language: string, pm: string): OpencodePermission {
+  const bash: Record<string, "allow" | "ask" | "deny"> = { "*": "ask" };
+  for (const p of stackCommandPrefixes(language, pm)) bash[`${p} *`] = "allow";
+  return { edit: "allow", webfetch: "allow", bash };
 }
 
 export function buildTemplateContext(
@@ -120,8 +159,9 @@ export function buildTemplateContext(
     commands,
     verifyCmd: "npx reins verify",
     permissionsAllow: buildPermissionsAllow(language, pm),
+    opencodePermission: buildOpencodePermission(language, pm),
     agents: Object.fromEntries(
-      AGENT_ROLES.map((role) => [role, resolveAgentPolicy(config.agents[role])]),
+      AGENT_ROLES.map((role) => [role, resolveAgentPolicy(config.agents[role], config.runtime)]),
     ) as Record<AgentRole, ResolvedAgentPolicy>,
   };
 }

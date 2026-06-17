@@ -7,8 +7,8 @@
 > Put the reins on your AI agent.
 
 **Reins** installs and maintains a controlled, multi-agent **harness** on top of an
-existing project, so an AI agent (Claude Code) deploys subagents in a way that is
-**structured, secure, verifiable, and reproducible**.
+existing project, so an AI agent (Claude Code or opencode) deploys subagents in a way
+that is **structured, secure, verifiable, and reproducible**.
 
 It generalizes the harness pattern — disjoint agent roles, state-on-disk, an
 executable verification gate, and enforced hooks — into a single CLI you run on
@@ -33,8 +33,10 @@ guard rails. Reins makes the repository itself the control surface:
 - **State on disk, not chat** — `progress/` (append-only history + subagent
   reports) and `feature_list.json` (one feature in progress at a time) survive
   restarts and context limits.
-- **Verification is law** — `reins verify` is wired into Claude Code hooks, so a
-  failing required check **blocks the session from ending** (exit code `2`).
+- **Verification is law** — `reins verify` is wired into your agent (Claude Code
+  hooks, or an opencode plugin), so a failing required check is enforced before a
+  session ends (Claude Code hard-blocks via exit code `2`; see
+  [Runtimes](#runtimes)).
 - **Idempotent & updatable** — `reins init` never clobbers your files;
   `reins update` migrates the harness with a three-way merge that keeps your edits.
 
@@ -45,12 +47,35 @@ guard rails. Reins makes the repository itself the control surface:
 | **`lite`** | `leader` / `implementer` / `reviewer` / `security-reviewer` + the verification gate                                                                              |
 | **`sdd`**  | everything in `lite`, plus a Spec-Driven layer: `spec_author`, EARS requirements, a **human approval gate** before coding, and **requirement↔test traceability** |
 
+## Runtimes
+
+Pick the agent runtime at install time with `reins init --runtime <claude|opencode>`
+(interactive otherwise; defaults to `claude`). A project gets **one** runtime — the
+same agents, presets, and verification gate, emitted in the form each tool reads.
+
+| Runtime        | Agents               | Commands               | Rules file                               | Gate wiring                                                                                                                            |
+| -------------- | -------------------- | ---------------------- | ---------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------- |
+| **`claude`**   | `.claude/agents/*`   | `.claude/commands/*`   | `CLAUDE.md` (imports `AGENTS.md`)        | `.claude/settings.json` hooks (`Stop` hard-blocks a red tree via exit 2)                                                               |
+| **`opencode`** | `.opencode/agents/*` | `.opencode/commands/*` | `AGENTS.md` (opencode reads it natively) | `.opencode/plugins/reins-verify.ts` runs the gate on `file.edited` + `session.idle`, and `opencode.json` carries the permission policy |
+
+The runtime-neutral parts (`docs/`, `CHECKPOINTS.md`, `feature_list.json`,
+`progress/`, CI workflow, `reins.config.json`) are identical either way, and
+`reins verify` / `doctor` / `update` / `add-agent` all follow `runtime` in
+`reins.config.json`.
+
+> **opencode enforcement is softer.** Unlike Claude Code's `Stop` hook, an
+> opencode plugin can't hard-stop a finished session — the gate runs and reports
+> a red tree loudly, but treat a failing check as "not done" rather than a hard
+> block. Per-role **model pinning** also differs: opencode wants a full
+> `provider/model` ID (e.g. `anthropic/claude-sonnet-4-5`); Reins' `sonnet`/`opus`
+> aliases and `effort` are Claude-only and are omitted for opencode agents.
+
 ## What `reins init` generates
 
 ```
 .claude/
   agents/            leader, implementer, reviewer, security-reviewer (+ spec_author for sdd)
-  commands/          reins-verify, reins-status, next-feature, brainstorm (+ new-spec, approve-spec, validate-discovery for sdd)
+  commands/          reins-verify, reins-status, next-feature, autopilot, brainstorm (+ new-spec, approve-spec, validate-discovery for sdd)
   settings.json      hooks (verify on edit/stop, telemetry on SubagentStop) + permission allowlist
 CLAUDE.md            root instructions; imports @AGENTS.md
 AGENTS.md            navigation map of the harness
@@ -64,9 +89,14 @@ reins.config.json    stack, commands, and which checks the gate runs
 .reins/manifest.json what Reins generated + hashes (for updates)
 ```
 
-Existing files are respected: `settings.json` is deep-merged, `.gitignore` gets a
-managed block, an existing `CLAUDE.md` gets a `CLAUDE.reins.md` sidecar, and
-anything Reins replaces is backed up under `.reins-backup/`.
+The tree above is the `claude` runtime; `--runtime opencode` emits the
+`.opencode/` equivalents and an `AGENTS.md` rules file instead (see
+[Runtimes](#runtimes)).
+
+Existing files are respected: `settings.json` / `opencode.json` are deep-merged,
+`.gitignore` gets a managed block, an existing `CLAUDE.md` / `AGENTS.md` gets a
+`*.reins.md` sidecar, and anything Reins replaces is backed up under
+`.reins-backup/`.
 
 ## Commands
 
@@ -74,8 +104,8 @@ anything Reins replaces is backed up under `.reins-backup/`.
 
 Install the harness into the current project.
 
-`--preset <lite|sdd>` · `--yes, -y` (non-interactive) · `--dry-run` · `--no-ci` ·
-`--no-git-hook` · `--force` · `--cwd <dir>` · `--json`
+`--preset <lite|sdd>` · `--runtime <claude|opencode>` · `--yes, -y` (non-interactive) ·
+`--dry-run` · `--no-ci` · `--no-git-hook` · `--force` · `--cwd <dir>` · `--json`
 
 ### `reins verify`
 
@@ -133,7 +163,7 @@ Show the active feature, the queue, and session cost/token telemetry.
 Internal — invoked by the `SubagentStop` hook to append best-effort subagent
 cost/token usage to `progress/telemetry.jsonl`. Always exits `0`.
 
-## Slash commands (inside Claude Code)
+## Slash commands (inside Claude Code or opencode)
 
 `reins init` also installs slash commands under `.claude/commands/`. You type
 them **in the Claude Code chat** (not the terminal) and they drive the harness
@@ -165,6 +195,21 @@ secrets, or dependencies) — with no further questions. `pending` features
 ```
 /next-feature
 /next-feature csv-export
+```
+
+### `/autopilot`
+
+The batch form of `/next-feature`: drives the **entire ready queue** to `done` in
+one unattended run, one feature at a time. It implements every `approved` feature
+(`pending` under lite) whose dependencies are `done`, in dependency order. It
+pauses once — showing the ordered queue and waiting for a single go-ahead — then
+runs to completion with no further questions, halting and reporting on the first
+blocker (a feature that ends up `blocked`, an unresolvable review, or a red tree).
+It never brainstorms, writes specs, or asks discovery questions; queue the work
+with `/brainstorm` first.
+
+```
+/autopilot
 ```
 
 ### `/reins-verify`
@@ -221,6 +266,8 @@ A typical session, end to end:
 /next-feature                               # implement the first feature, gate-free
 /reins-status                               # see what's done and what's next
 /next-feature                               # ...repeat until the queue is empty
+# — or, once everything is approved, drain the whole queue in one run:
+/autopilot                                  # implement every ready feature back-to-back
 ```
 
 ## The loop

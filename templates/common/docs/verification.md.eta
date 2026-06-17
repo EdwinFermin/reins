@@ -1,6 +1,6 @@
 # Verification
 
-> How we prove the project works. `<%= it.verifyCmd %>` runs these as one cross-platform gate (non-zero exit on failure) and is wired into Claude Code hooks.
+> How we prove the project works. `<%= it.verifyCmd %>` runs these as one cross-platform gate (non-zero exit on failure) and is wired into <% if (it.runtime === "opencode") { %>the `.opencode/plugins/reins-verify.ts` plugin<% } else { %>Claude Code hooks<% } %>.
 
 ## Levels
 
@@ -16,5 +16,6 @@
 ## Rules
 
 - The required checks (see `reins.config.json` → `verify.required`) must pass before a feature is `done`.
-- The `Stop` hook runs `<%= it.verifyCmd %>` and blocks the session from ending on a red tree.
-- Never mark a feature `done` with a failing required check.
+<% if (it.runtime === "opencode") { %>- The `reins-verify` plugin runs `<%= it.verifyCmd %>` on `file.edited` and `session.idle` and reports a red tree. (opencode cannot hard-block a finished session — treat a failing gate as "not done".)
+<% } else { %>- The `Stop` hook runs `<%= it.verifyCmd %>` and blocks the session from ending on a red tree.
+<% } %>- Never mark a feature `done` with a failing required check.

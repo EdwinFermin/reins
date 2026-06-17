@@ -4,6 +4,54 @@ All notable changes to Reins are documented here. This project adheres to
 [Semantic Versioning](https://semver.org/). The harness template version tracks
 the package version, so `reins update` migrates installed harnesses to it.
 
+## 0.6.0
+
+### opencode runtime support
+
+- **`reins init --runtime <claude|opencode>`** (interactive prompt otherwise;
+  defaults to `claude`). A project targets one runtime, recorded as `runtime` in
+  `reins.config.json`. The same agents, presets, and verification gate are
+  emitted in the form each tool reads.
+- **opencode runtime** generates `.opencode/agents/*` (with `mode` +
+  `provider/model` frontmatter), `.opencode/commands/*`, an `AGENTS.md` rules
+  file (opencode reads it natively — no `CLAUDE.md`), and `opencode.json` with a
+  stack-aware `permission` policy.
+- **Verification gate via plugin.** `.opencode/plugins/reins-verify.ts` runs
+  `npx reins verify` on `file.edited` (≈ `PostToolUse`) and `session.idle`
+  (≈ `Stop`), and `npx reins status` on `session.created`. It reuses the
+  `--hook` names so `verify.perHook` applies to both runtimes. Note: an opencode
+  plugin cannot hard-block a finished session the way Claude Code's `Stop` hook
+  does — a red tree is surfaced loudly but not hard-stopped.
+- **Runtime-aware tooling.** `reins doctor`, `reins update`, and
+  `reins add-agent` all follow `runtime`: doctor checks the opencode plugin /
+  `opencode.json` and tolerates the absent Claude tree; add-agent writes to
+  `.opencode/agents/` with opencode frontmatter.
+- Per-role **model pinning** for opencode requires a full `provider/model` ID
+  (e.g. `anthropic/claude-sonnet-4-5`); Reins' `sonnet`/`opus`/`haiku`/`fable`
+  aliases and `effort` are Claude-only and omitted for opencode agents. The
+  model schema now accepts `/` so `provider/model` IDs validate.
+- **Existing Claude harnesses are unaffected**: `runtime` defaults to `claude`
+  and the `.claude/` output is byte-identical; `reins update` re-renders it
+  unchanged.
+
+### Commands
+
+- **`/autopilot`** — the batch form of `/next-feature`. Acting as the `leader`,
+  it drives the entire ready queue to `done` in one unattended run: every
+  `approved` feature (`pending` under lite) whose dependencies are `done`, in
+  dependency order, one `in_progress` at a time. It pauses once to show the
+  ordered queue and wait for a single go-ahead, then runs to completion with no
+  further questions, halting and reporting on the first blocker. Generated for
+  both runtimes (`.claude/commands/autopilot.md`,
+  `.opencode/commands/autopilot.md`); `reins update` adds it to existing
+  harnesses.
+
+### Docs
+
+- README: new **"Runtimes"** section comparing the `claude` and `opencode`
+  output, gate wiring, and the softer opencode enforcement guarantee; documents
+  the new `/autopilot` command.
+
 ## 0.5.0
 
 ### Per-role model & effort configuration

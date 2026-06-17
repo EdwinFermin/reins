@@ -27,6 +27,8 @@ Per-role model and effort are set in `reins.config.json` under `agents` (`inheri
 <% } %>
 One feature `in_progress` at a time. Every result is written to `progress/`; replies to the leader are one-line references like `done -> progress/impl_<feature>.md`.
 
+**Batch (optional):** `/autopilot` is the batch form of `/next-feature` — it implements the whole ready queue (`<% if (it.isSdd) { %>approved<% } else { %>pending<% } %>` features whose deps are `done`) back-to-back, one at a time, pausing once for a go-ahead and halting on the first blocker.
+
 **All artifacts are written in English.** Chat can happen in any language; files written to disk (`specs/`, `progress/`, docs) are always English.
 
 ## Verification is law

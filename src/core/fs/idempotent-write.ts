@@ -11,6 +11,7 @@ export type FileKind =
   | "settings-json"
   | "gitignore"
   | "claude-md"
+  | "agents-md"
   | "ci-workflow"
   | "create-only";
 
@@ -129,7 +130,15 @@ export async function applyFile(file: RenderedFile, opts: WriteOptions): Promise
     return result("append-block", sha256(updated));
   }
 
-  if (kind === "claude-md") {
+  // Markdown instruction files (CLAUDE.md, AGENTS.md) are reconciled by a
+  // managed block: Reins owns its section and leaves anything the user adds
+  // alone. When an unmanaged file already exists, write a sidecar instead.
+  if (kind === "claude-md" || kind === "agents-md") {
+    const sidecarName = kind === "claude-md" ? "CLAUDE.reins.md" : "AGENTS.reins.md";
+    const importHint =
+      kind === "claude-md"
+        ? "Existing CLAUDE.md left intact; add `@CLAUDE.reins.md` to import the harness instructions."
+        : "Existing AGENTS.md left intact; merge in `AGENTS.reins.md` to load the harness instructions.";
     const body = normalizeText(file.content).trim();
     if (existing == null) {
       const content = wrapManagedBlock(body, HTML_COMMENT) + "\n";
@@ -142,15 +151,10 @@ export async function applyFile(file: RenderedFile, opts: WriteOptions): Promise
       await write(abs, updated, dryRun);
       return result("merge", sha256(updated));
     }
-    const sidecarRel = siblingPath(file.destRel, "CLAUDE.reins.md");
+    const sidecarRel = siblingPath(file.destRel, sidecarName);
     const content = normalizeText(file.content);
     await write(path.join(opts.cwd, sidecarRel), content, dryRun);
-    return result(
-      "sidecar",
-      sha256(content),
-      sidecarRel,
-      "Existing CLAUDE.md left intact; add `@CLAUDE.reins.md` to import the harness instructions.",
-    );
+    return result("sidecar", sha256(content), sidecarRel, importHint);
   }
 
   if (kind === "create-only") {
