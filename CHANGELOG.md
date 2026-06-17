@@ -4,6 +4,16 @@ All notable changes to Reins are documented here. This project adheres to
 [Semantic Versioning](https://semver.org/). The harness template version tracks
 the package version, so `reins update` migrates installed harnesses to it.
 
+## 0.6.1
+
+### Docs
+
+- README: the **Requirements** section now lists both runtimes (Claude Code
+  _or_ opencode) and how to pick one at install time; previously it named only
+  Claude Code.
+- README: the slash-commands intro reflects that commands install under
+  `.opencode/commands/` for the opencode runtime, not only `.claude/commands/`.
+
 ## 0.6.0
 
 ### opencode runtime support

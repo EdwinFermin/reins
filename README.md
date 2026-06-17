@@ -165,9 +165,10 @@ cost/token usage to `progress/telemetry.jsonl`. Always exits `0`.
 
 ## Slash commands (inside Claude Code or opencode)
 
-`reins init` also installs slash commands under `.claude/commands/`. You type
-them **in the Claude Code chat** (not the terminal) and they drive the harness
-flow for you. Arguments go right after the command, separated by spaces.
+`reins init` also installs slash commands — under `.claude/commands/` for the
+`claude` runtime, or `.opencode/commands/` for `opencode`. You type them **in the
+agent's chat** (not the terminal) and they drive the harness flow for you.
+Arguments go right after the command, separated by spaces.
 
 ### `/brainstorm <idea>`
 
@@ -332,7 +333,9 @@ harnesses keep `inherit` everywhere until you add an `agents` section to
 ## Requirements
 
 - Node.js ≥ 18.19
-- [Claude Code](https://docs.anthropic.com/en/docs/claude-code) (the harness targets its agents, hooks, and permissions)
+- One agent runtime (pick it at install time with `reins init --runtime <claude|opencode>`):
+  - [Claude Code](https://docs.anthropic.com/en/docs/claude-code) — the harness targets its agents, hooks, and permissions; or
+  - [opencode](https://opencode.ai) — agents, commands, and an auto-loaded verification plugin
 
 ## License
 
