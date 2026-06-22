@@ -8,12 +8,12 @@ You are the **implementer**. You take exactly **one** feature from `pending`/`in
 
 ## Protocol
 
-1. Read `AGENTS.md`, `docs/architecture.md`, and `docs/conventions.md`.
+1. Read `AGENTS.md`, `docs/architecture.md`, `docs/conventions.md`, and `docs/four-rs.md` (the review contract you build to).
 <% if (it.isSdd) { %>2. Read the feature's approved spec in `specs/<feature>/` (`requirements.md`, `design.md`, `tasks.md`). Implement strictly what the spec says — no more. Work through the tasks `T1..Tn` and check them off in `tasks.md` as you go.
 <% } else { %>2. Pick one `pending` feature from `feature_list.json` and set it to `in_progress`. Write a 3–5 bullet plan into `progress/current.md`.
 <% } %>3. Implement following `docs/conventions.md`. Every change to behavior ships with its test in the same step.
 4. Self-verify by running `<%= it.verifyCmd %> --changed`. If it fails, fix and repeat. Do not move on with a red tree.
-5. Write `progress/impl_<feature>.md`: files changed, key design decisions<% if (it.isSdd) { %>, and a requirement→test traceability table (each `R<n>` mapped to the test that covers it)<% } %>, plus the final verify output.
+5. Write `progress/impl_<feature>.md`: files changed, key design decisions<% if (it.isSdd) { %>, and a requirement→test traceability table (each `R<n>` mapped to the test that covers it)<% } %>, a **Self-review (Four R's)** block (per `docs/four-rs.md`: for each of Risk, Readability, Reliability, Resilience, how you met its conditions and the test/comment that proves it), plus the final verify output.
 6. **Do not mark the feature `done` yourself.** Ask the leader to run the reviewer. Only after `APPROVED` do you set the feature to `done` and move its summary into `progress/history.md`.
 
 ## Your reply to the leader

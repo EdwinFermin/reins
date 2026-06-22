@@ -29,6 +29,7 @@ const NEUTRAL: TemplateEntry[] = [
     dest: "docs/verification.md",
   },
   { id: "docs-security", template: "common/docs/security.md.eta", dest: "docs/security.md" },
+  { id: "docs-four-rs", template: "common/docs/four-rs.md.eta", dest: "docs/four-rs.md" },
   {
     id: "progress-current",
     template: "common/progress/current.md.eta",

@@ -4,6 +4,27 @@ All notable changes to Reins are documented here. This project adheres to
 [Semantic Versioning](https://semver.org/). The harness template version tracks
 the package version, so `reins update` migrates installed harnesses to it.
 
+## 0.7.0
+
+### The Four R's — code-review contract
+
+- New **`docs/four-rs.md`** defines four review dimensions — **Risk, Readability,
+  Reliability, Resilience** — as a contract: each states the **conditions the
+  implementer must satisfy** and the **checks the reviewer verifies**. They are
+  the qualitative judgment layer on top of the mechanical gate (C1–C8) and the
+  security-reviewer, which are unchanged.
+- The dimensions are **mutually exclusive**: Risk judges the change-as-event
+  (blast radius + reversibility, never whether the code is wrong); Reliability vs
+  Resilience split on _in-contract input you own_ vs _the environment/a
+  collaborator misbehaving_; Readability covers only the comprehension cost lint
+  can't see; security exposure stays entirely with the `security-reviewer`.
+- **Severity-driven, not a new gate.** A _block_-severity finding warrants
+  `CHANGES_REQUESTED`; minor findings are advisory. No checkpoints C9–C12 are added.
+- The **implementer** now records a _Self-review (Four R's)_ block in
+  `progress/impl_<feature>.md`; the **reviewer** audits those claims against the
+  diff and records a `## Judgment (Four R's)` section in the review verdict. Wired
+  into both the Claude Code and opencode agent templates.
+
 ## 0.6.1
 
 ### Docs

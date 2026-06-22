@@ -1,0 +1,146 @@
+# The Four R's — review contract
+
+> The qualitative layer the `implementer` builds to and the `reviewer` audits. It sits **on top of**
+> the mechanical gate (`<%= it.verifyCmd %>` / `CHECKPOINTS.md` C1–C8) and the reviewer's
+> architecture/conventions read — it interprets what a green gate does **not** prove. The Four R's are
+> **never** ticked as checkpoints; they are judged by severity.
+
+Each R is a **contract**: the **implementer conditions** are the bar to meet before handing off; the
+**reviewer checks** are how the reviewer verifies the bar was met. The reviewer **audits the
+implementer's Self-review claims against the diff** — it does not re-derive them from scratch.
+
+## How the four fit together
+
+- **Master cut — change vs. code.** **Risk** judges the *change as an event* (how bad if wrong, how
+  recoverable, did it stay in scope) and **never** whether the code is wrong. The other three judge the
+  *code as written*.
+- **Reliability vs Resilience** (the discriminator, worded the same in both): *in-contract input you
+  promised to handle = Reliability; the environment or an external collaborator misbehaving =
+  Resilience.* Mnemonic: **"Reliability keeps wrong answers out; Resilience keeps the system standing
+  when no answer is possible."** The same line of code can carry one finding of each.
+- **Security is out of scope.** Injection, secrets, auth, deserialization, hostile input → the
+  **`security-reviewer`** (checkpoint C5). "Risk" here means **blast radius + reversibility**, *not*
+  security risk.
+- **Orphans stay in the general review.** Performance / algorithmic complexity (`architecture.md`'s "no
+  IO in tight loops"), test isolation (`conventions.md`'s "temp dirs, no shared global state"), and
+  duplication/maintainability are **not** folded into any R — they remain the reviewer's general
+  architecture/conventions read.
+- **Order of application:** Risk → Readability → Reliability → Resilience. Risk first triages how hard
+  to scrutinize the rest; Resilience last, once the intended behavior is understood.
+
+---
+
+## Risk — *how bad if wrong, how hard to undo — never whether it's wrong*
+
+Judges the diff as an event: blast radius, reversibility, and scope-fidelity. It calibrates scrutiny;
+it never itself claims a defect (a wrong value is always a Reliability/Resilience finding).
+
+**Implementer conditions**
+- Keep the diff inside the feature's stated scope — no drive-by refactors, renames, or formatting churn
+  bundled with behavior.
+- For any change to a public signature, route, serialized format, or on-disk state, ship a
+  **reversibility artifact in the same diff**: a version bump + deprecation path, a down-migration, a
+  temp-then-rename, or a feature flag.
+- **Append** to `progress/history.md` and other append-only state — never rewrite it.
+- Make test coverage **proportional to blast radius**: a widely-reached or irreversible path ships with
+  its tests in the same diff.
+
+**Reviewer checks**
+- Grep the callers/fan-in of every changed or **removed** export, route, or flag — does a nominally
+  small feature edit a shared/core module or a high-fan-in symbol?
+- Is a public contract changed/**removed** (not merely added) with no version bump, deprecation, or
+  migration in the diff?
+- Does the diff touch files unrelated to the feature's intent in `progress/impl_<feature>.md`?
+- Does a state/format mutation lack a rollback artifact, or was append-only history rewritten?
+- Does a high-reach or irreversible path ship with **zero added test lines** (then hand the correctness
+  question to Reliability)?
+
+**Severity** — **Block** on an irreversible or wide-reach change with no reversibility artifact and no
+proportionate proof. Advisory when blast radius is contained and proof is merely thin.
+
+## Readability — *can the next cold agent understand the why — beyond what lint sees*
+
+Judges only the comprehension cost a linter and `conventions.md` **cannot** mechanize. Rule of thumb:
+assume lint passed, then ask what intent is still unrecoverable. If a linter or a `conventions.md` rule
+could flag it (formatting, casing, descriptive-name-as-style, function size), it is **out of bounds**.
+
+**Implementer conditions**
+- Names match what the code does **after** this change — rename on behavior drift.
+- Every non-obvious decision (magic constant, ordering dependency, workaround) has its **why** captured
+  in a comment **or** in `progress/impl_<feature>.md`.
+- No dead code, commented-out blocks, or vestigial parameters left in the diff.
+- A new public symbol's contract (inputs, outputs, errors) is evident from its signature, doc, or the
+  report.
+
+**Reviewer checks**
+- A name that no longer matches behavior (drift) — e.g. `validateInput()` that now also writes a cache.
+- A magic literal / ordering dependency / workaround whose **why** is in neither the diff nor the
+  report.
+- Tangled flow: one function with 3+ distinct responsibilities, nesting deeper than ~3 levels, or a
+  many-operand guard with no explaining name.
+- The report's stated **rationale** contradicts the diff (a *value/output* mismatch is Reliability,
+  not Readability).
+- Leftover dead/commented-out code that misleads about what is live.
+
+**Severity** — **Block** when intent is genuinely unrecoverable (a load-bearing magic constant or
+workaround with no why anywhere; a name that actively lies about behavior). Advisory for minor drift,
+mild over-nesting, or a thin-but-present rationale. **Never block on anything lint could catch (C3).**
+
+## Reliability — *right answer for inputs you own — and a test that actually proves it*
+
+The correctness-completeness layer on top of C4. C4 proves the tests pass; Reliability asks whether
+those passing tests assert the **right thing**, and whether in-contract inputs are still correct.
+"In-contract" comes from the approved spec<% if (it.isSdd) { %> (`specs/<feature>/requirements.md`)<% } %>; with no spec, fall
+back to the boundary classes a function of that shape must handle.
+
+**Implementer conditions**
+- Correct results for every in-contract input: empty/null, zero, negative, single-element,
+  max/overflow, off-by-one in loop/slice bounds, **every** case of a finite enum.
+- Each behavior ships a test that **asserts the real computed value** — not `is defined`, not `does not
+  throw`, not "a mock was called".
+- A bug fix ships a **regression test that would have caught the original bug**.
+- No reliance on iteration/map order, wall-clock, locale, timezone, or unseeded randomness where output
+  must be stable. A clean (uninterrupted) re-run is idempotent.
+
+**Reviewer checks**
+- A test that asserts almost nothing — green under C4 but proving no behavior.
+- A wrong value on an in-contract boundary input visible in the diff (empty, zero, negative,
+  off-by-one, overflow).
+- A switch/if-chain over a finite set missing a case or a contract-required default.
+- Behavior diverges from what the report/spec says the code **computes**.
+- Determinism risk on a valid input, or a state update that double-applies on a clean re-run.
+
+**Severity** — **Block** when the diff is wrong for an in-contract input it will certainly receive, or
+when the only test for a behavior is vacuous. A bug fix with no regression test is a block. Advisory
+when a boundary is merely unasserted but the path looks correct on inspection.
+
+## Resilience — *fails safe when the world breaks — atomic state, cleanup, timeouts, clean restart*
+
+Judges how the change behaves when something **outside its control** fails: a dependency errors or
+times out, a write is partial, a collaborator returns garbage, or the process is killed mid-operation.
+It directly operationalizes the harness's "state survives restarts" promise against on-disk state. The
+"raise named errors / no catch-all" rule is `architecture.md`'s existing principle, not Resilience's
+primary signal — Resilience owns the system-level behavior the docs don't cover.
+
+**Implementer conditions**
+- Every external call (network, FS, subprocess, DB, dependency) has a **timeout** and error handling;
+  retries are bounded.
+- Every acquired resource (handle, lock, temp dir, connection) is **released on the error path**
+  (finally / defer / context manager).
+- Multi-step writes to on-disk state (`feature_list.json`, `progress/`) or external systems are
+  **atomic** (temp-then-rename / rollback), so a mid-operation crash can't leave half-written state.
+- An **interrupted** run can be re-run cleanly — it resumes, it does not double-apply.
+- External/collaborator response shapes are guarded for empty/partial/garbage data.
+
+**Reviewer checks**
+- An external call with no timeout, no error handling, or a naive/unbounded retry.
+- A resource acquired with no guaranteed release on the error path.
+- A multi-step state write with no atomic write / rollback (a crash corrupts it).
+- A re-run **after an interruption** that double-applies instead of resuming.
+- Code that indexes into / trusts an external shape with no empty-or-partial guard, or unguarded
+  concurrent access.
+
+**Severity** — **Block** when an external failure that will eventually happen leaves the system
+corrupt, hung, or unrecoverable (in-place state overwrite with no atomic write, a no-timeout call on a
+hot path, a leaked lock/handle). Advisory when the fault path is unlikely or contained. Route any line
+whose concern is **exploitability** (not robustness) to the `security-reviewer`.

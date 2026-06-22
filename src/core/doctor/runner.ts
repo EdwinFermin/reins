@@ -179,6 +179,7 @@ export async function runDoctor(cwd: string, cliVersion: string): Promise<Doctor
     "docs/conventions.md",
     "docs/verification.md",
     "docs/security.md",
+    "docs/four-rs.md",
   ];
   if (cfg.preset === "sdd") {
     coreFiles.push(

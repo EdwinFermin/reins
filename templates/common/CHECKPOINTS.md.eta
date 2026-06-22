@@ -12,3 +12,5 @@ Objective criteria the `reviewer` walks before approving. Each maps to an execut
 <% } %>- **C<%= it.isSdd ? 8 : 6 %> — Session closed well.** `progress/history.md` updated; no stray artifacts; `current.md` reset.
 
 A checkpoint that cannot be ticked blocks approval.
+
+Above these mechanical checks sits the **Four R's** (Risk, Readability, Reliability, Resilience — see `docs/four-rs.md`): the qualitative judgment the reviewer applies to interpret what a green C1–C8 does **not** prove. They are severity-driven (a *block*-severity finding warrants `CHANGES_REQUESTED`), never ticked as checkpoints here.

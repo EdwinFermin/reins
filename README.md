@@ -37,15 +37,18 @@ guard rails. Reins makes the repository itself the control surface:
   hooks, or an opencode plugin), so a failing required check is enforced before a
   session ends (Claude Code hard-blocks via exit code `2`; see
   [Runtimes](#runtimes)).
+- **The Four R's** — beyond the mechanical gate, every change is reviewed against an
+  explicit contract — **Risk, Readability, Reliability, Resilience** — that the
+  `implementer` builds to and the `reviewer` audits (see `docs/four-rs.md`).
 - **Idempotent & updatable** — `reins init` never clobbers your files;
   `reins update` migrates the harness with a three-way merge that keeps your edits.
 
 ## Presets
 
-| Preset     | What you get                                                                                                                                                     |
-| ---------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| **`lite`** | `leader` / `implementer` / `reviewer` / `security-reviewer` + the verification gate                                                                              |
-| **`sdd`**  | everything in `lite`, plus a Spec-Driven layer: `spec_author`, EARS requirements, a **human approval gate** before coding, and **requirement↔test traceability** |
+| Preset     | What you get                                                                                                                                                          |
+| ---------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| **`lite`** | `leader` / `implementer` / `reviewer` / `security-reviewer`, the verification gate, and the **Four R's** review contract (Risk, Readability, Reliability, Resilience) |
+| **`sdd`**  | everything in `lite`, plus a Spec-Driven layer: `spec_author`, EARS requirements, a **human approval gate** before coding, and **requirement↔test traceability**      |
 
 ## Runtimes
 
@@ -80,7 +83,7 @@ The runtime-neutral parts (`docs/`, `CHECKPOINTS.md`, `feature_list.json`,
 CLAUDE.md            root instructions; imports @AGENTS.md
 AGENTS.md            navigation map of the harness
 CHECKPOINTS.md       objective review checklist (each maps to an executable check)
-docs/                architecture, conventions, verification, security (+ sdd-workflow)
+docs/                architecture, conventions, verification, security, four-rs (+ sdd-workflow)
 feature_list.json    the work queue + its state machine
 progress/            current.md, history.md (append-only), subagent reports, telemetry.jsonl
 specs/_template/     requirements (EARS) / design / tasks   (sdd only)

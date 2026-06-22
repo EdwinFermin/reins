@@ -50,6 +50,18 @@ describe("reins init — sdd on a node project", () => {
     const specAuthor = await readFile(path.join(cwd, ".claude/agents/spec_author.md"), "utf8");
     expect(specAuthor).toContain("model: sonnet\n---");
 
+    // The Four R's review contract: the doc renders and is wired into both agents.
+    const fourRs = await readFile(path.join(cwd, "docs/four-rs.md"), "utf8");
+    expect(fourRs).toContain("# The Four R's");
+    for (const r of ["Risk", "Readability", "Reliability", "Resilience"]) {
+      expect(fourRs).toContain(r);
+    }
+    expect(reviewer).toContain("docs/four-rs.md");
+    expect(reviewer).toContain("## Judgment (Four R's)");
+    const implementer = await readFile(path.join(cwd, ".claude/agents/implementer.md"), "utf8");
+    expect(implementer).toContain("docs/four-rs.md");
+    expect(implementer).toContain("Self-review (Four R's)");
+
     // The brainstorm command is COMMON — present under sdd too.
     const brainstorm = await readFile(path.join(cwd, ".claude/commands/brainstorm.md"), "utf8");
     expect(brainstorm).toContain("$ARGUMENTS");
@@ -116,6 +128,8 @@ describe("reins init — lite", () => {
     await runInit({ cwd, preset: "lite", harnessVersion: "9.9.9", installGitHook: false });
     expect(await exists(path.join(cwd, ".claude/agents/spec_author.md"))).toBe(false);
     expect(await exists(path.join(cwd, "specs/_template/requirements.md"))).toBe(false);
+    // The Four R's doc is runtime-neutral — present in lite too.
+    expect(await exists(path.join(cwd, "docs/four-rs.md"))).toBe(true);
     // COMMON commands are present in lite too.
     expect(await exists(path.join(cwd, ".claude/commands/brainstorm.md"))).toBe(true);
     const autopilot = await readFile(path.join(cwd, ".claude/commands/autopilot.md"), "utf8");
@@ -130,5 +144,25 @@ describe("reins init — lite", () => {
     await runInit({ cwd, preset: "lite", harnessVersion: "9.9.9", installGitHook: false });
     const fl = await readFile(path.join(cwd, "feature_list.json"), "utf8");
     expect(fl).toContain('"slug":"x"');
+  });
+});
+
+describe("reins init — opencode runtime", () => {
+  it("renders the Four R's contract into the opencode agents", async () => {
+    const cwd = await nodeProject();
+    await runInit({
+      cwd,
+      preset: "sdd",
+      runtime: "opencode",
+      harnessVersion: "9.9.9",
+      installGitHook: false,
+    });
+    expect(await exists(path.join(cwd, "docs/four-rs.md"))).toBe(true);
+    const reviewer = await readFile(path.join(cwd, ".opencode/agents/reviewer.md"), "utf8");
+    expect(reviewer).toContain("docs/four-rs.md");
+    expect(reviewer).toContain("## Judgment (Four R's)");
+    const implementer = await readFile(path.join(cwd, ".opencode/agents/implementer.md"), "utf8");
+    expect(implementer).toContain("docs/four-rs.md");
+    expect(implementer).toContain("Self-review (Four R's)");
   });
 });
