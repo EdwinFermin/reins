@@ -1,4 +1,4 @@
-import { appendFile, mkdtemp, readFile, rm, stat, writeFile } from "node:fs/promises";
+import { appendFile, mkdir, mkdtemp, readFile, rm, stat, writeFile } from "node:fs/promises";
 import os from "node:os";
 import path from "node:path";
 import { describe, expect, it } from "vitest";
@@ -62,6 +62,33 @@ describe("runUpdate", () => {
     expect(
       JSON.parse(await readFile(path.join(cwd, ".reins/manifest.json"), "utf8")).harnessVersion,
     ).toBe("0.2.0");
+  });
+
+  it("preserves ghost mode and re-syncs .git/info/exclude", async () => {
+    const cwd = await mkdtemp(path.join(os.tmpdir(), "reins-update-ghost-"));
+    await writeFile(
+      path.join(cwd, "package.json"),
+      JSON.stringify({ name: "demo", scripts: { test: "node --version" } }),
+    );
+    await mkdir(path.join(cwd, ".git", "info"), { recursive: true });
+    await runInit({
+      cwd,
+      preset: "lite",
+      harnessVersion: "0.1.0",
+      installGitHook: false,
+      gitExclude: true,
+    });
+
+    const applied = await runUpdate({ cwd, harnessVersion: "0.2.0", apply: true });
+    expect(applied.applied).toBe(true);
+
+    // No tracked artifacts leak in on update.
+    await expect(stat(path.join(cwd, ".gitignore"))).rejects.toThrow();
+    // The exclude block survives and the flag is preserved in the manifest.
+    expect(await readFile(path.join(cwd, ".git/info/exclude"), "utf8")).toContain(">>> reins >>>");
+    const manifest = JSON.parse(await readFile(path.join(cwd, ".reins/manifest.json"), "utf8"));
+    expect(manifest.gitExcluded).toBe(true);
+    expect(manifest.harnessVersion).toBe("0.2.0");
   });
 
   it("reports not installed for a bare directory", async () => {

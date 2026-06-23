@@ -108,7 +108,29 @@ Existing files are respected: `settings.json` / `opencode.json` are deep-merged,
 Install the harness into the current project.
 
 `--preset <lite|sdd>` · `--runtime <claude|opencode>` · `--yes, -y` (non-interactive) ·
-`--dry-run` · `--no-ci` · `--no-git-hook` · `--force` · `--cwd <dir>` · `--json`
+`--dry-run` · `--no-ci` · `--no-git-hook` · `--ghost` · `--force` · `--cwd <dir>` · `--json`
+
+#### Ghost mode — use Reins without committing it (monorepos / personal harness)
+
+`reins init --ghost` installs the full harness into the working tree but keeps it
+**out of git**: it writes every generated path to **`.git/info/exclude`** (git's
+local, per-clone ignore file, which lives inside `.git/` and is never committed),
+leaves your tracked `.gitignore` untouched, and skips the CI workflow (a
+non-committed workflow never runs). Nothing about Reins — not the files, not the
+ignore rules — shows up in `git status`, diffs, or history.
+
+Everything else works exactly as a committed install: the files are physically
+present, so Claude Code/opencode load the agents, commands and settings, and the
+verification gate (including the `--changed` hook, which `git diff`s at the repo
+root) runs natively. This is ideal for a monorepo where you want the harness
+locally but never pushed.
+
+Caveats: ghost ignores are **per-clone** — re-run `reins init --ghost` after a
+fresh clone, and teammates don't inherit the harness (by design). `.git/info/exclude`
+only hides _untracked_ files; a path already committed needs `git rm --cached` first.
+`reins update` and `reins doctor` understand ghost mode (recorded in
+`.reins/manifest.json`): update re-syncs the exclude block as new files appear, and
+doctor reports drift.
 
 ### `reins verify`
 

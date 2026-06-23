@@ -1,6 +1,8 @@
 import path from "node:path";
 import { loadConfig } from "../config/load";
 import { AgentModelSchema, EFFORT_LEVELS, type ReinsConfig } from "../config/schema";
+import { GIT_EXCLUDE_REL, gitExcludeEntries } from "../fs/git-exclude";
+import { hasManagedBlock } from "../fs/markers";
 import { pathExists, readTextIfExists } from "../fs/read";
 import { readManifest } from "../manifest/harness-manifest";
 import { featureListCheck } from "../verify/state-checks";
@@ -214,6 +216,32 @@ export async function runDoctor(cwd: string, cliVersion: string): Promise<Doctor
   // feature_list.json (reuse the verify invariant)
   const fl = await featureListCheck({ cwd, config: cfg, changed: false });
   results.push(result("feature-list", fl.status === "fail" ? "fail" : "ok", fl.summary));
+
+  // Ghost mode: the harness is kept out of git via .git/info/exclude.
+  if (manifest.gitExcluded) {
+    const excludeText = await readTextIfExists(path.join(cwd, GIT_EXCLUDE_REL));
+    if (!excludeText || !hasManagedBlock(excludeText)) {
+      results.push(
+        result(
+          "ghost",
+          "warn",
+          `${GIT_EXCLUDE_REL} missing the Reins block — run \`reins update\``,
+        ),
+      );
+    } else {
+      const expected = gitExcludeEntries(manifest.files.map((f) => f.path));
+      const missing = expected.filter((e) => !excludeText.includes(e));
+      results.push(
+        missing.length
+          ? result(
+              "ghost",
+              "warn",
+              `${GIT_EXCLUDE_REL} drift: ${missing.length} path(s) uncovered — run \`reins update\``,
+            )
+          : result("ghost", "ok", "harness excluded from git (.git/info/exclude)"),
+      );
+    }
+  }
 
   // Version drift
   let updateAvailable = false;

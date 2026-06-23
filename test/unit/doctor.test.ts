@@ -1,4 +1,4 @@
-import { mkdtemp, readFile, rm, stat, writeFile } from "node:fs/promises";
+import { mkdir, mkdtemp, readFile, rm, stat, writeFile } from "node:fs/promises";
 import os from "node:os";
 import path from "node:path";
 import { describe, expect, it } from "vitest";
@@ -60,6 +60,32 @@ describe("runDoctor", () => {
     expect(report.ok).toBe(true);
     expect(report.updateAvailable).toBe(true);
     expect(report.results.find((r) => r.id === "version")?.status).toBe("warn");
+  });
+
+  it("reports a healthy ghost install and flags exclude drift", async () => {
+    const cwd = await mkdtemp(path.join(os.tmpdir(), "reins-doctor-ghost-"));
+    await writeFile(
+      path.join(cwd, "package.json"),
+      JSON.stringify({ name: "demo", scripts: { test: "node --version" } }),
+    );
+    await mkdir(path.join(cwd, ".git", "info"), { recursive: true });
+    await runInit({
+      cwd,
+      preset: "lite",
+      harnessVersion: "0.1.0",
+      installGitHook: false,
+      gitExclude: true,
+    });
+
+    const healthy = await runDoctor(cwd, "0.1.0");
+    expect(healthy.ok).toBe(true);
+    expect(healthy.results.find((r) => r.id === "ghost")?.status).toBe("ok");
+
+    // Wipe the exclude file -> doctor warns the harness is no longer ignored.
+    await writeFile(path.join(cwd, ".git/info/exclude"), "");
+    const drifted = await runDoctor(cwd, "0.1.0");
+    expect(drifted.results.find((r) => r.id === "ghost")?.status).toBe("warn");
+    expect(drifted.ok).toBe(true); // warn, not fail
   });
 
   it("checks the opencode plugin/config and tolerates the missing Claude tree", async () => {

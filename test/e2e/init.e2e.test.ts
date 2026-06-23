@@ -1,4 +1,4 @@
-import { mkdtemp, readFile, stat, writeFile } from "node:fs/promises";
+import { mkdir, mkdtemp, readFile, stat, writeFile } from "node:fs/promises";
 import os from "node:os";
 import path from "node:path";
 import { describe, expect, it } from "vitest";
@@ -144,6 +144,56 @@ describe("reins init — lite", () => {
     await runInit({ cwd, preset: "lite", harnessVersion: "9.9.9", installGitHook: false });
     const fl = await readFile(path.join(cwd, "feature_list.json"), "utf8");
     expect(fl).toContain('"slug":"x"');
+  });
+});
+
+describe("reins init — ghost mode", () => {
+  it("keeps the harness out of git via .git/info/exclude", async () => {
+    const cwd = await nodeProject();
+    await mkdir(path.join(cwd, ".git", "info"), { recursive: true });
+
+    const result = await runInit({
+      cwd,
+      preset: "sdd",
+      harnessVersion: "9.9.9",
+      installGitHook: false,
+      gitExclude: true,
+    });
+    expect(result.gitExcluded).toBe(true);
+
+    // Harness files are physically present (work exactly like a committed install).
+    expect(await exists(path.join(cwd, ".claude/agents/leader.md"))).toBe(true);
+    expect(await exists(path.join(cwd, "CLAUDE.md"))).toBe(true);
+
+    // Nothing tracked: no .gitignore touched, no committed CI workflow.
+    expect(await exists(path.join(cwd, ".gitignore"))).toBe(false);
+    expect(await exists(path.join(cwd, ".github/workflows/reins-verify.yml"))).toBe(false);
+
+    // Ignores live in the local, never-committed exclude file.
+    const exclude = await readFile(path.join(cwd, ".git/info/exclude"), "utf8");
+    expect(exclude).toContain(">>> reins >>>");
+    expect(exclude).toContain("/.claude/");
+    expect(exclude).toContain("/CLAUDE.md");
+    expect(exclude).toContain("/.reins/");
+    expect(exclude).toContain("/specs/");
+
+    // The mode is recorded for update/doctor.
+    const manifest = JSON.parse(await readFile(path.join(cwd, ".reins/manifest.json"), "utf8"));
+    expect(manifest.gitExcluded).toBe(true);
+  });
+
+  it("flags ghost mode when the directory is not a git repo", async () => {
+    const cwd = await nodeProject();
+    const result = await runInit({
+      cwd,
+      preset: "lite",
+      harnessVersion: "9.9.9",
+      installGitHook: false,
+      gitExclude: true,
+    });
+    expect(result.gitExcluded).toBe(false);
+    expect(result.gitExcludeSkippedNoGit).toBe(true);
+    expect(await exists(path.join(cwd, ".git/info/exclude"))).toBe(false);
   });
 });
 

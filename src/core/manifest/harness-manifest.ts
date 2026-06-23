@@ -15,6 +15,8 @@ export interface HarnessManifest {
   preset: string;
   runtime: string;
   generatedAt: string;
+  /** True when the harness is kept out of git via `.git/info/exclude` (ghost mode). */
+  gitExcluded?: boolean;
   files: ManifestEntry[];
 }
 

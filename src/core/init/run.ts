@@ -4,6 +4,7 @@ import { buildDefaultConfig } from "../config/defaults";
 import type { Preset, Runtime } from "../config/schema";
 import { detectStack } from "../detect";
 import type { StackProfile } from "../detect/types";
+import { upsertGitExclude } from "../fs/git-exclude";
 import { applyFiles, type WriteOutcome } from "../fs/idempotent-write";
 import { pathExists } from "../fs/read";
 import { writeManifest, type HarnessManifest } from "../manifest/harness-manifest";
@@ -19,6 +20,8 @@ export interface RunInitOptions {
   force?: boolean;
   installGitHook?: boolean;
   writeCi?: boolean;
+  /** Ghost mode: keep the harness out of git via `.git/info/exclude` (no CI, no tracked `.gitignore`). */
+  gitExclude?: boolean;
 }
 
 export interface RunInitResult {
@@ -28,6 +31,10 @@ export interface RunInitResult {
   outcomes: WriteOutcome[];
   hasGit: boolean;
   gitHookInstalled: boolean;
+  /** True when the harness was excluded from git via `.git/info/exclude`. */
+  gitExcluded: boolean;
+  /** Set when `--ghost` was requested but the directory is not a git repo. */
+  gitExcludeSkippedNoGit: boolean;
 }
 
 function stamp(): string {
@@ -50,8 +57,13 @@ export async function runInit(opts: RunInitOptions): Promise<RunInitResult> {
     date: new Date().toISOString().slice(0, 10),
   });
 
+  const gitExclude = opts.gitExclude === true;
+
   let files = buildHarnessFiles(config, ctx);
-  if (opts.writeCi === false) files = files.filter((f) => f.templateId !== "ci");
+  // A non-committed CI workflow never runs, so ghost mode always skips it.
+  if (opts.writeCi === false || gitExclude) files = files.filter((f) => f.templateId !== "ci");
+  // Ghost mode tracks ignores in `.git/info/exclude`, not the committed `.gitignore`.
+  if (gitExclude) files = files.filter((f) => f.templateId !== "gitignore");
 
   const backupRoot = path.join(cwd, ".reins-backup", stamp());
   const outcomes = await applyFiles(files, {
@@ -61,16 +73,33 @@ export async function runInit(opts: RunInitOptions): Promise<RunInitResult> {
     force: opts.force,
   });
 
+  const hasGit = await pathExists(path.join(cwd, ".git"));
+
+  let gitExcluded = false;
+  let gitExcludeSkippedNoGit = false;
+  if (gitExclude) {
+    if (hasGit) {
+      await upsertGitExclude(
+        cwd,
+        outcomes.map((o) => o.destRel),
+        { dryRun: opts.dryRun },
+      );
+      gitExcluded = true;
+    } else {
+      gitExcludeSkippedNoGit = true;
+    }
+  }
+
   const manifest: HarnessManifest = {
     harnessVersion: opts.harnessVersion,
     preset: opts.preset,
     runtime,
     generatedAt: new Date().toISOString(),
+    ...(gitExcluded ? { gitExcluded: true } : {}),
     files: outcomes.map((o) => ({ path: o.destRel, templateId: o.templateId, hash: o.hash })),
   };
   await writeManifest(cwd, manifest, opts.dryRun);
 
-  const hasGit = await pathExists(path.join(cwd, ".git"));
   let gitHookInstalled = false;
   if (opts.installGitHook !== false && hasGit && !opts.dryRun) {
     const src = path.join(cwd, ".reins", "hooks", "pre-commit");
@@ -83,5 +112,14 @@ export async function runInit(opts: RunInitOptions): Promise<RunInitResult> {
     }
   }
 
-  return { preset: opts.preset, runtime, profile, outcomes, hasGit, gitHookInstalled };
+  return {
+    preset: opts.preset,
+    runtime,
+    profile,
+    outcomes,
+    hasGit,
+    gitHookInstalled,
+    gitExcluded,
+    gitExcludeSkippedNoGit,
+  };
 }

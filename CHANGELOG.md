@@ -4,6 +4,25 @@ All notable changes to Reins are documented here. This project adheres to
 [Semantic Versioning](https://semver.org/). The harness template version tracks
 the package version, so `reins update` migrates installed harnesses to it.
 
+## 0.8.0
+
+### Ghost mode — use Reins without committing it
+
+- New **`reins init --ghost`** installs the full harness into the working tree but
+  keeps it **out of git**. It writes every generated path to **`.git/info/exclude`**
+  (git's local, never-committed ignore file), leaves the tracked `.gitignore`
+  untouched, and skips the CI workflow (a non-committed workflow never runs).
+  Nothing about Reins shows up in `git status`, diffs, or history.
+- Everything else is identical to a committed install: the files are on disk, so
+  agents/commands/settings load normally and the verification gate (including the
+  `--changed` hook) runs natively at the repo root. Ideal for a monorepo where you
+  want the harness locally but never pushed.
+- The mode is recorded in `.reins/manifest.json` (`gitExcluded: true`):
+  **`reins update`** re-syncs the `.git/info/exclude` block as new files appear, and
+  **`reins doctor`** reports a `ghost` check (and flags drift if the block falls
+  behind). Ghost ignores are per-clone — re-run `reins init --ghost` after a fresh
+  clone; teammates don't inherit the harness, by design.
+
 ## 0.7.0
 
 ### The Four R's — code-review contract

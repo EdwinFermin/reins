@@ -26,6 +26,7 @@ export class InitCommand extends Command {
     examples: [
       ["Interactive install", "reins init"],
       ["Non-interactive, SDD preset", "reins init --preset sdd --yes"],
+      ["Keep the harness out of git (monorepos)", "reins init --ghost --yes"],
       ["Preview without writing", "reins init --dry-run"],
     ],
   });
@@ -44,6 +45,9 @@ export class InitCommand extends Command {
   ci = Option.Boolean("--ci", true, { description: "Write a CI workflow (use --no-ci to skip)" });
   gitHook = Option.Boolean("--git-hook", true, {
     description: "Install the pre-commit hook (use --no-git-hook to skip)",
+  });
+  ghost = Option.Boolean("--ghost", false, {
+    description: "Keep the harness out of git via .git/info/exclude (no commit, no CI)",
   });
   force = Option.Boolean("--force", false, {
     description: "Overwrite without backup (discouraged)",
@@ -103,6 +107,7 @@ export class InitCommand extends Command {
       force: this.force,
       installGitHook: this.gitHook,
       writeCi: this.ci,
+      gitExclude: this.ghost,
     });
 
     if (this.json) {
@@ -170,6 +175,7 @@ function serialize(result: RunInitResult, cwd: string, dryRun: boolean): unknown
       frameworks: result.profile.frameworks,
     },
     gitHookInstalled: result.gitHookInstalled,
+    gitExcluded: result.gitExcluded,
     actions: countActions(result),
     files: result.outcomes,
   };
@@ -203,6 +209,15 @@ function renderSummary(result: RunInitResult, cwd: string, dryRun: boolean): str
   if (!dryRun && result.hasGit) {
     lines.push(
       `  Git hook: ${result.gitHookInstalled ? "installed (.git/hooks/pre-commit)" : "skipped (already present)"}`,
+    );
+  }
+  if (result.gitExcluded) {
+    lines.push(
+      `  Ghost mode: harness kept out of git via .git/info/exclude (local-only; re-run \`reins init --ghost\` after a fresh clone)`,
+    );
+  } else if (result.gitExcludeSkippedNoGit) {
+    lines.push(
+      "  Ghost mode: requested but no git repo found — run `git init`, then re-run `reins init --ghost`",
     );
   }
 

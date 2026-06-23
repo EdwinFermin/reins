@@ -2,6 +2,7 @@ import { mkdir, writeFile } from "node:fs/promises";
 import path from "node:path";
 import { loadConfig } from "../config/load";
 import { backupFile } from "../fs/backup";
+import { upsertGitExclude } from "../fs/git-exclude";
 import { applyFile, type FileKind } from "../fs/idempotent-write";
 import { readJsonIfExists, readTextIfExists } from "../fs/read";
 import {
@@ -109,7 +110,13 @@ export async function runUpdate(opts: RunUpdateOptions): Promise<UpdateResult> {
     projectName: path.basename(cwd),
     date: new Date().toISOString().slice(0, 10),
   });
+  const gitExcluded = manifest.gitExcluded === true;
+
   let files = buildHarnessFiles(config, ctx);
+  // Ghost installs track ignores in `.git/info/exclude` and skip CI, so neither
+  // the committed `.gitignore` nor the workflow are part of the update set.
+  if (gitExcluded)
+    files = files.filter((f) => f.templateId !== "ci" && f.templateId !== "gitignore");
   if (opts.only) files = files.filter((f) => matchGlob(opts.only!, f.destRel));
 
   const baseline = new Map<string, ManifestEntry>(manifest.files.map((e) => [e.templateId, e]));
@@ -192,11 +199,18 @@ export async function runUpdate(opts: RunUpdateOptions): Promise<UpdateResult> {
 
   if (apply) {
     await bumpConfigVersion(cwd, opts.harnessVersion);
+    // Re-sync the local ignore so new agents/commands from this version are covered.
+    if (gitExcluded)
+      await upsertGitExclude(
+        cwd,
+        newFiles.map((f) => f.path),
+      );
     const updated: HarnessManifest = {
       harnessVersion: opts.harnessVersion,
       preset: config.preset,
       runtime: config.runtime,
       generatedAt: new Date().toISOString(),
+      ...(gitExcluded ? { gitExcluded: true } : {}),
       files: newFiles,
     };
     await writeManifest(cwd, updated);
