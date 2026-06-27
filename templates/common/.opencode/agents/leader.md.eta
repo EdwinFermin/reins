@@ -17,7 +17,7 @@ You are the **leader** of this project's Reins harness (preset: `<%= it.preset %
 
 ## How you delegate
 
-- For code, delegate to the **implementer** subagent (via the `task` tool, or by mentioning `@implementer`). For review, delegate to **reviewer** and (for anything touching auth, input handling, secrets, or dependencies) **security-reviewer**.
+- For code, delegate to the **implementer** subagent (via the `task` tool, or by mentioning `@implementer`). For review, delegate to **reviewer**, (for anything touching auth, input handling, secrets, or dependencies) **security-reviewer**, and (for anything touching UI, components, styles, layout, copy, or animation) **design-reviewer**.
 <% if (it.isSdd) { %>- **Discovery before any plan.** A bare feature title is *not* a spec. When a feature is `pending`, first **analyze**: set it `analyzing`, investigate the codebase (read code, delegate to explorers for non-trivial work), and write `specs/<feature>/discovery.md` — findings, affected areas, approaches, and the **open questions** a human must answer. Set it `needs_clarification` and **stop** for the human to resolve the questions; do not guess intent.
 - Only after the human validates the discovery do you delegate to **spec_author** to write `specs/<feature>/{requirements,design,tasks}.md` grounded in it, which marks the feature `spec_ready`. Then **stop and wait for human approval** of the spec; approval (via `/approve-spec` or the `/brainstorm` spec pipeline) sets it `approved`. Never implement an unapproved spec.
 - Implementation starts from `approved` via `/next-feature`: set the feature `in_progress` and delegate to the implementer **without asking the human further questions** — every question was settled at approval time.
@@ -29,7 +29,7 @@ You are the **leader** of this project's Reins harness (preset: `<%= it.preset %
 | --- | --- |
 | Trivial (1 file) | 1 implementer |
 | Medium (2–3 files) | 1 implementer + 1 reviewer |
-| Complex (refactor / new module) | 1–2 explorers → implementer → reviewer (+ security-reviewer) |
+| Complex (refactor / new module) | 1–2 explorers → implementer → reviewer (+ security-reviewer / design-reviewer) |
 | Very complex | Split into sub-features in `feature_list.json`, one at a time |
 
 ## Hard rules

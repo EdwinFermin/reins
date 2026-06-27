@@ -6,7 +6,7 @@ This repository is managed by a **Reins** harness. The primary agent here is the
 
 ## Core contract
 
-- **Orchestrate, do not implement.** For any code change, delegate to the `implementer` subagent (via the `task` tool); for review, `reviewer` (and `security-reviewer` for anything touching auth, input, IO, secrets, or dependencies). The leader never edits source or test files directly.
+- **Orchestrate, do not implement.** For any code change, delegate to the `implementer` subagent (via the `task` tool); for review, `reviewer` (and `security-reviewer` for anything touching auth, input, IO, secrets, or dependencies; `design-reviewer` for anything touching UI, components, styles, layout, copy, or animation). The leader never edits source or test files directly.
 - **State lives on disk, not in chat.** Subagents write their results to files under `progress/` and reply with a one-line reference. The source of truth is the repository, not the conversation.
 - **One feature `in_progress` at a time**, tracked in `feature_list.json`.
 - **Verification is law.** Run `<%= it.verifyCmd %>` before ending a session; a failing required check means the work is not done. The `.opencode/plugins/reins-verify.ts` plugin runs it automatically.
@@ -23,13 +23,14 @@ This repository is managed by a **Reins** harness. The primary agent here is the
 | `implementer` | subagent | <%= it.agents.implementer.model ?? "default" %> | Implements one feature + its tests; self-verifies. |
 | `reviewer` | subagent | <%= it.agents.reviewer.model ?? "default" %> | Approves/rejects against docs + checkpoints + the Four R's (`docs/four-rs.md`). |
 | `security-reviewer` | subagent | <%= it.agents["security-reviewer"].model ?? "default" %> | Audits secrets, input handling, dependencies. |
+| `design-reviewer` | subagent | <%= it.agents["design-reviewer"].model ?? "default" %> | Audits UI for "AI slop", design-system fidelity, a11y, motion (`docs/design.md`, `docs/motion.md`). |
 <% if (it.isSdd) { %>| `spec_author` | subagent | <%= it.agents.spec_author.model ?? "default" %> | Writes EARS requirements, design, tasks. |
 <% } %>
 `default` = opencode's configured model. To pin a model per role, set `agents.<role>.model` in `reins.config.json` to a full `provider/model` ID (e.g. `anthropic/claude-sonnet-4-5`).
 
 ## Where things live
 
-- `docs/` — `architecture.md`, `conventions.md`, `verification.md`, `security.md`, `four-rs.md`<% if (it.isSdd) { %>, `sdd-workflow.md`<% } %>.
+- `docs/` — `architecture.md`, `conventions.md`, `verification.md`, `security.md`, `four-rs.md`, `design.md`, `motion.md`<% if (it.isSdd) { %>, `sdd-workflow.md`<% } %>.
 - `feature_list.json` — the work queue and its state machine.
 - `progress/` — living session state (`current.md`), append-only `history.md`, and subagent reports.
 - `CHECKPOINTS.md` — the objective acceptance checklist the reviewer walks.

@@ -54,6 +54,18 @@ describe("reins init — opencode runtime (sdd)", () => {
     expect(reviewer).toContain("mode: subagent");
     expect(reviewer.slice(0, reviewer.indexOf("\n---", 3))).not.toContain("model:");
 
+    // The design-reviewer renders with opencode frontmatter (mode, no name, alias omitted).
+    const designReviewer = await readFile(
+      path.join(cwd, ".opencode/agents/design-reviewer.md"),
+      "utf8",
+    );
+    expect(designReviewer).toContain("mode: subagent");
+    expect(designReviewer).not.toContain("name: design-reviewer");
+    expect(designReviewer.slice(0, designReviewer.indexOf("\n---", 3))).not.toContain("model:");
+    expect(await exists(path.join(cwd, "docs/design.md"))).toBe(true);
+    expect(await exists(path.join(cwd, "docs/motion.md"))).toBe(true);
+    expect(await exists(path.join(cwd, ".opencode/commands/design-audit.md"))).toBe(true);
+
     // Commands under .opencode/commands, with opencode argument syntax.
     const brainstorm = await readFile(path.join(cwd, ".opencode/commands/brainstorm.md"), "utf8");
     expect(brainstorm).toContain("$ARGUMENTS");

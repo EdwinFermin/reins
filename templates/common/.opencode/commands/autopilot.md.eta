@@ -7,7 +7,7 @@ Acting as the `leader`, drive the entire ready queue to `done` in one run. Proce
 1. Run `<%= it.verifyCmd %>` to confirm a green starting state. If it is red, stop and report — never start a batch on a red tree.
 2. Run `reins status` to build the dependency-ordered queue of features ready to implement. Present that ordered list to the human and **wait for a single go-ahead**. This is the only time autopilot pauses — once you have the OK, run to completion with no further questions.
 3. Then, for each feature in order:
-   1. Set it `in_progress`.<% if (it.isSdd) { %> Its spec is already human-approved — do **not** re-open discovery or ask anything.<% } %> Delegate to `implementer`, then `reviewer` (and `security-reviewer` if the change touches auth, input, IO, secrets, or dependencies). Iterate implementer ↔ reviewer until the reviewer approves.
+   1. Set it `in_progress`.<% if (it.isSdd) { %> Its spec is already human-approved — do **not** re-open discovery or ask anything.<% } %> Delegate to `implementer`, then `reviewer` (and `security-reviewer` if the change touches auth, input, IO, secrets, or dependencies; `design-reviewer` if it touches UI, components, styles, or copy). Iterate implementer ↔ reviewer until the reviewer approves.
    2. On approval, mark the feature `done`, then run `<%= it.verifyCmd %>` to confirm the tree is still green.
    3. **Halt on trouble.** If a feature ends up `blocked`, the reviewer keeps requesting changes that cannot be resolved, or `<%= it.verifyCmd %>` goes red, **stop the whole run**. Leave state coherent — no feature stuck `in_progress` — and report which features completed and which remain.
    4. Otherwise, move on to the next feature.

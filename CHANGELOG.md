@@ -4,6 +4,46 @@ All notable changes to Reins are documented here. This project adheres to
 [Semantic Versioning](https://semver.org/). The harness template version tracks
 the package version, so `reins update` migrates installed harnesses to it.
 
+## 0.9.0
+
+### Design quality — a native anti-"AI slop" pillar
+
+- New **`docs/design.md`** is the anti-slop review contract: an **implementer pre-flight** (infer the
+  brief, respect the existing design system, ship every state — empty/loading/error — and all
+  supported themes, no placeholder copy), six **disciplines** (typography, color, layout & spacing,
+  components, accessibility, content & voice) each with implementer conditions + reviewer checks, and
+  a **"Slop tells" blocklist** (gradient text, side-stripe borders, the generic indigo→cyan palette,
+  oversized centered heroes, emoji-as-icons, hover-scale-on-everything, placeholder content, …) that
+  blocks on sight. Distilled natively from the design-skill ecosystem — no external install.
+- New **`docs/motion.md`** is the motion/animation contract: when to animate vs not, a motion
+  vocabulary (≈150–250ms, ease-out enters / ease-in exits, spring vs tween, proportional distance),
+  and conditions for `prefers-reduced-motion`, compositor-friendly properties, and interruptible
+  motion.
+- New **`design-reviewer`** agent (Claude Code + opencode), parallel to `security-reviewer`: read-only,
+  audits any UI-touching diff against `docs/design.md` + `docs/motion.md`, writes a `## Design`
+  section into `progress/review_<feature>.md`, and replies `DESIGN_OK` / `DESIGN_BLOCK`. New installs
+  default it to `sonnet`; existing harnesses keep `inherit`.
+- New **`design` verify check** — a deterministic, no-LLM scan of UI files
+  (`.css`/`.scss`/`.tsx`/`.jsx`/`.vue`/`.svelte`/`.astro`/`.html`/`.mdx`) for the mechanically-detectable
+  Slop tells: **block** on placeholder `Lorem ipsum` and gradient text (`bg-clip-text` +
+  `text-transparent`); **advisory** on the generic indigo/violet→pink/cyan gradient palette, default
+  glassmorphism, hover-scale-on-everything, and arbitrary off-scale spacing. It is checkpoint **C6**
+  (UI-only — skips cleanly on backend diffs and `--changed` runs that touch no UI), tunable via
+  `reins.config.json` → `design.slopScan` (`enabled`, `failOn`), and the `design-reviewer` runs it as
+  its floor before applying judgment. Run it directly with `reins verify --only design`.
+- New **`/design-audit [path]`** slash command audits existing UI on demand (outside the feature
+  flow) — it scopes a set of UI files and runs the `design-reviewer` over them, reporting `[block]`
+  vs `[advisory]` findings.
+- **Wired across the harness.** The `implementer` now reads the design docs and runs their pre-flight
+  on UI work; the `leader`, `/next-feature`, and `/autopilot` invoke the `design-reviewer` for
+  UI-touching changes; `CHECKPOINTS.md` and `docs/four-rs.md` note design quality as the
+  design-reviewer's domain (the Four R's judge the code; the design-reviewer judges what the user
+  sees). `reins add-agent design-reviewer --from …` enables custom style variants.
+- **Existing harnesses are unaffected**: the new role defaults to `inherit`, and `design` is added to
+  `verify.required` for **new installs only** (an existing `reins.config.json` is create-only, so its
+  required list is preserved — opt in by adding `"design"`). The docs, agent, and check arrive on
+  `reins update`.
+
 ## 0.8.0
 
 ### Ghost mode — use Reins without committing it

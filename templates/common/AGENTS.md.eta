@@ -14,6 +14,7 @@ This repository is the system. Documentation, configuration, living state, and t
 | `implementer` | Read, Write, Edit, Bash | <%= it.agents.implementer.model ?? "inherit" %> | Implements one feature + its tests; self-verifies. |
 | `reviewer` | Read, Grep, Bash | <%= it.agents.reviewer.model ?? "inherit" %> | Approves/rejects against docs + checkpoints + the Four R's (`docs/four-rs.md`). |
 | `security-reviewer` | Read, Grep, Bash | <%= it.agents["security-reviewer"].model ?? "inherit" %> | Audits secrets, input handling, dependencies. |
+| `design-reviewer` | Read, Grep, Bash | <%= it.agents["design-reviewer"].model ?? "inherit" %> | Audits UI for "AI slop", design-system fidelity, a11y, motion (`docs/design.md`, `docs/motion.md`). |
 <% if (it.isSdd) { %>| `spec_author` | Write to `specs/` only | <%= it.agents.spec_author.model ?? "inherit" %> | Writes EARS requirements, design, tasks. |
 <% } %>
 Per-role model and effort are set in `reins.config.json` under `agents` (`inherit` = use the session's model/effort).

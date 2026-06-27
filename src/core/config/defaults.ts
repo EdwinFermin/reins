@@ -23,8 +23,8 @@ export function buildDefaultConfig(opts: {
 
   const required: CheckId[] =
     preset === "sdd"
-      ? ["lint", "unit", "security", "feature-list", "traceability"]
-      : ["lint", "unit", "security", "feature-list"];
+      ? ["lint", "unit", "security", "design", "feature-list", "traceability"]
+      : ["lint", "unit", "security", "design", "feature-list"];
 
   // `.parse` accepts unknown input and fills every schema default, so the
   // result is guaranteed valid and fully typed.
@@ -49,7 +49,7 @@ export function buildDefaultConfig(opts: {
       required,
       perHook: {
         PostToolUse: ["lint", "unit"],
-        PreCommit: ["lint", "security"],
+        PreCommit: ["lint", "security", "design"],
         Stop: required,
         CI: required,
       },
@@ -67,6 +67,7 @@ export function buildDefaultConfig(opts: {
       implementer: { model: "inherit" },
       reviewer: { model: "sonnet" },
       "security-reviewer": { model: "inherit" },
+      "design-reviewer": { model: "sonnet" },
       spec_author: { model: "sonnet" },
     },
   });

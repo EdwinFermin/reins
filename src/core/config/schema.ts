@@ -9,6 +9,7 @@ export const CHECK_IDS = [
   "integration",
   "e2e",
   "security",
+  "design",
   "feature-list",
   "traceability",
 ] as const;
@@ -25,6 +26,7 @@ export const AGENT_ROLES = [
   "implementer",
   "reviewer",
   "security-reviewer",
+  "design-reviewer",
   "spec_author",
 ] as const;
 export const MODEL_ALIASES = ["inherit", "sonnet", "opus", "haiku", "fable"] as const;
@@ -57,6 +59,16 @@ const AgentPolicySchema = z
   })
   .strict()
   .default({});
+
+export const DesignGatesSchema = z.object({
+  slopScan: z
+    .object({
+      enabled: z.boolean().default(true),
+      // "block" = only block-severity tells fail; "advisory" = any tell fails.
+      failOn: z.enum(["advisory", "block"]).default("block"),
+    })
+    .default({}),
+});
 
 export const SecurityGatesSchema = z.object({
   depsAudit: z
@@ -97,11 +109,14 @@ export const ReinsConfigSchema = z
     }),
     verify: z
       .object({
-        required: z.array(z.enum(CHECK_IDS)).default(["lint", "unit", "security", "feature-list"]),
+        required: z
+          .array(z.enum(CHECK_IDS))
+          .default(["lint", "unit", "security", "design", "feature-list"]),
         perHook: z.record(z.enum(HOOK_NAMES), z.array(z.enum(CHECK_IDS))).default({}),
       })
       .default({}),
     security: SecurityGatesSchema.default({}),
+    design: DesignGatesSchema.default({}),
     thresholds: z
       .object({
         coverageMin: z.number().min(0).max(100).optional(),
@@ -121,6 +136,7 @@ export const ReinsConfigSchema = z
         implementer: AgentPolicySchema,
         reviewer: AgentPolicySchema,
         "security-reviewer": AgentPolicySchema,
+        "design-reviewer": AgentPolicySchema,
         spec_author: AgentPolicySchema,
       })
       .strict()

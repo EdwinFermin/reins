@@ -157,7 +157,7 @@ export async function runDoctor(cwd: string, cliVersion: string): Promise<Doctor
   // Agents (per preset) with valid frontmatter
   const agentsDir = isOpencode ? ".opencode/agents" : ".claude/agents";
   const requiredKeys = isOpencode ? ["description", "mode"] : ["name", "description", "tools"];
-  const agents = ["leader", "implementer", "reviewer", "security-reviewer"];
+  const agents = ["leader", "implementer", "reviewer", "security-reviewer", "design-reviewer"];
   if (cfg.preset === "sdd") agents.push("spec_author");
   for (const agent of agents) {
     const text = await readTextIfExists(path.join(cwd, agentsDir, `${agent}.md`));
@@ -182,6 +182,8 @@ export async function runDoctor(cwd: string, cliVersion: string): Promise<Doctor
     "docs/verification.md",
     "docs/security.md",
     "docs/four-rs.md",
+    "docs/design.md",
+    "docs/motion.md",
   ];
   if (cfg.preset === "sdd") {
     coreFiles.push(

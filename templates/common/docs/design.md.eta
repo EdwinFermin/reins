@@ -1,0 +1,164 @@
+# Design quality — review contract
+
+> The anti-slop contract the `implementer` builds to and the `design-reviewer` audits on any
+> UI-touching diff (and `/design-audit` on demand). It sits **on top of** the mechanical gate and
+> the Four R's: those judge code; this judges what the user sees. **Severity-driven** (Block /
+> Advisory). A deterministic floor runs as `<%= it.verifyCmd %> --only design` — a static scan for the
+> mechanically-detectable Slop tells (see below); the **depth** is the `design-reviewer`'s judgment,
+> which this contract defines. The scan is a high-precision floor, **not** a substitute for it.
+
+The goal is interfaces that look **intentional**, not generated. "AI slop" is the failure mode: a
+templated look with no point of view — the same violet gradient, the same centered hero, the same
+three icon-cards — that signals nobody decided anything. This contract names the decisions so the
+implementer makes them and the reviewer can check them.
+
+## Scope — when it applies
+
+Triggers on any diff that touches **what renders**: components, pages, layouts, templates,
+stylesheets, design tokens, CSS/Tailwind/utility classes, SVG/iconography, or copy shown in the UI.
+Pure backend, build, or logic diffs are out of scope — route them to the normal review. If unsure
+whether a change is user-visible, treat it as in scope.
+
+## Implementer conditions — the pre-flight contract
+
+Meet these **before** handing off any UI change. They come first because most slop is generated, not
+designed — it is the default a model reaches for when it skips the context.
+
+- **Brief inference first.** Before writing UI, read what already exists: the design tokens, theme,
+  spacing/type scale, and the two or three closest existing components. Infer the brief from the
+  product and the surrounding screens. Never invent a parallel look for one new screen.
+- **Respect the design system — extend, don't overwrite.** Reuse the existing variables, primitives,
+  and component library. A new color, font, radius, or shadow that isn't already in the system is a
+  decision that needs a reason in the report — not a default.
+- **Hard pre-flight check.** Before you hand off, walk the **Slop tells** list below and confirm the
+  diff ships none of them. This is a gate on yourself, not a suggestion.
+- **Dark-mode protocol.** If the project supports more than one theme, every new surface ships **all**
+  supported themes. No hardcoded light-only colors; use the themed token.
+- **Output completeness.** Ship the real thing: real copy (no Lorem, no "Card title"), and every
+  state the surface can be in — **empty, loading, error**, and the populated/success state. A screen
+  that only renders the happy path with placeholder data is not done.
+- **Accessibility is part of done**, not a later pass — see the Accessibility discipline.
+<% if (it.isSdd) { %>- **Build to the spec.** "In-contract" UX (states, copy, flows) comes from the approved
+  `specs/<feature>/` — implement what it says, no more.
+<% } %>
+## Disciplines
+
+Each discipline lists the **implementer conditions** (the bar) and the **reviewer checks** (how it is
+verified), then a severity note. The disciplines are deliberately narrow so findings don't overlap.
+
+### Typography — hierarchy through scale and weight, not noise
+
+- **Implementer:** establish hierarchy with a small type scale and weight, not arbitrary pixel sizes;
+  cap at ~2 families (one for UI, optionally one for display); keep body line-length readable
+  (~45–75ch) and line-height generous; align to the existing scale.
+- **Reviewer:** headings that differ from body by a hair instead of a clear step; more than two
+  families or a decorative font used for body; one-off `font-size` values off the scale; cramped
+  line-height on long text.
+- **Severity:** Block when hierarchy is unreadable (everything looks the same weight/size). Advisory
+  for minor scale drift.
+
+### Color — inherit the palette; contrast carries meaning
+
+- **Implementer:** use the project's palette tokens; pick colors for **contrast and meaning**, not
+  decoration; reserve a single accent and use it sparingly; never convey state by hue alone.
+- **Reviewer:** raw hex/`rgb()` literals instead of tokens; a second or third accent competing for
+  attention; the generic AI palette (see Slop tells); low-contrast text.
+- **Severity:** Block on the generic-palette tell or text that fails contrast. Advisory for a stray
+  literal that matches an existing token.
+
+### Layout & spacing — alignment and rhythm on a scale
+
+- **Implementer:** lay out on the existing spacing scale; align elements to a grid; use whitespace
+  deliberately to group and separate; match the layout to the surface (an app dashboard is not a
+  marketing page).
+- **Reviewer:** arbitrary pixel margins/paddings off the scale; misaligned edges; a reading-column
+  (`max-w-prose`, centered) layout applied to dense app UI; uniform spacing with no grouping.
+- **Severity:** Block when spacing is visibly arbitrary/inconsistent across a surface. Advisory for a
+  single off-scale value.
+
+### Components — reuse primitives; every state designed
+
+- **Implementer:** compose from existing primitives before building new ones; give every interactive
+  element its full set of states — **default, hover, focus-visible, active, disabled** (and selected
+  where it applies); keep one component one responsibility.
+- **Reviewer:** a bespoke one-off that duplicates an existing primitive; a button/input missing hover
+  or focus states; inconsistent variants of the "same" component across screens.
+- **Severity:** Block on a missing focus-visible state (also an a11y block) or a reinvented core
+  primitive. Advisory for a missing hover polish.
+
+### Accessibility — usable by everyone, by default
+
+- **Implementer:** semantic elements (`button`, `nav`, `label`) over `div` soup; visible
+  `focus-visible` on every interactive element; keyboard-operable; alt text on meaningful images and
+  labels on icon-only controls; pointer targets ≥ 24px; meaning never by color alone; respect
+  `prefers-reduced-motion` (see `docs/motion.md`).
+- **Reviewer:** clickable `div`s with no role/keyboard handling; no focus indicator; icon buttons with
+  no accessible name; low contrast; tiny targets.
+- **Severity:** Block on no-keyboard-access or no accessible name for a control. Advisory for a
+  borderline target size.
+
+### Content & voice — concrete copy in the product's voice
+
+- **Implementer:** write microcopy that is specific and in the product's voice; label buttons with
+  the action ("Create project", not "Submit"); make empty and error states helpful and human; if a
+  `DESIGN.md`/`PRODUCT.md` defines voice or anti-references, follow it.
+- **Reviewer:** generic filler ("Welcome to your dashboard!"), vague CTAs ("Click here", "Submit"),
+  empty states that just say "No data", error messages that leak internals or blame the user.
+- **Severity:** Block on placeholder/Lorem copy shipped to a user-visible surface. Advisory for a weak
+  but functional line.
+
+## Slop tells — never ship these
+
+These are the reflexive AI defaults that make an interface read as generated. Any one of them in a
+UI diff is a **Block on sight** unless there is an explicit, documented design reason.
+
+1. **Gradient text** on headings (rainbow / violet-to-pink `background-clip: text`).
+2. **Side-stripe / left-accent borders** — the 3–4px colored bar down the side of a card.
+3. **The generic AI palette** — indigo/violet → cyan as the brand color "because it looks techy".
+4. **Oversized centered hero** — giant centered headline + subtitle + two pill buttons, all centered,
+   on a surface that isn't a landing page.
+5. **Emoji as UI icons** — sparkles/rocket/lightbulb standing in for a real icon set in app chrome.
+6. **Glassmorphism by default** — frosted `backdrop-blur` cards with no reason to be translucent.
+7. **Uniform `rounded-2xl` + drop-shadow on everything** — every element same radius, same float.
+8. **Pill buttons with gradient fills** and no real hover/focus/disabled differentiation.
+9. **Three evenly-spaced "feature cards"** — icon-in-a-rounded-square + title + one sentence, ×3.
+10. **Unmotivated full-bleed gradient** section backgrounds.
+11. **Decorative blurred gradient blobs** floating behind content.
+12. **Low-contrast gray-on-gray** body text (e.g. light gray on white).
+13. **Arbitrary spacing** — hand-picked pixel values instead of the spacing scale.
+14. **Hover-scale on everything** (`scale-105` on cards, buttons, and images alike).
+15. **Placeholder content shipped** — Lorem ipsum, "Card Title", gray rectangle "images".
+16. **Centered reading-column app UI** — `max-w-prose mx-auto` wrapped around a dashboard.
+
+### What the deterministic scan catches
+
+`<%= it.verifyCmd %> --only design` is a regex floor over UI files (`.css`, `.scss`, `.tsx`, `.jsx`,
+`.vue`, `.svelte`, `.astro`, `.html`, `.mdx`). It catches the mechanically-detectable tells only:
+
+- **Block** (fail the gate at the default `failOn: "block"`): placeholder content (`Lorem ipsum`),
+  gradient text (`bg-clip-text` + `text-transparent`).
+- **Advisory** (reported, do not fail by default): the generic indigo/violet→pink/cyan gradient
+  palette, default glassmorphism (`backdrop-blur` on a translucent surface), `hover:scale-*` on many
+  elements, and arbitrary off-scale `[…px]` spacing.
+
+Everything else on this list — hierarchy, contrast, the centered hero, three-card layouts, emoji
+icons, design-system fidelity — is **not** mechanically checkable and is the `design-reviewer`'s job.
+Tune the scan in `reins.config.json` → `design.slopScan` (`enabled`, `failOn`).
+
+## Severity guide
+
+- **Block** — any Slop tell present; broken/unreadable hierarchy; the design system overridden with
+  unjustified new tokens; a supported theme or a required state (empty/loading/error) missing on a
+  shipped surface; a keyboard/focus/contrast a11y failure; placeholder copy on a user-visible screen.
+- **Advisory** — minor scale or spacing drift, a single off-token literal that matches an existing
+  value, a weak-but-working microcopy line, a hover polish left undone.
+
+A **Block**-severity finding warrants `DESIGN_BLOCK` (the design-reviewer's `CHANGES_REQUESTED`).
+Advisory findings are recorded but do not block.
+
+## Optional inputs — DESIGN.md / PRODUCT.md
+
+If the project carries a `DESIGN.md` (tokens, components, brand rules) or a `PRODUCT.md` (users,
+voice, anti-references), read it **first** — it overrides defaults and resolves taste questions this
+contract leaves open. Brand surfaces (marketing) and product surfaces (the app) follow different
+rules; when both exist, treat the named one as authoritative for that surface.

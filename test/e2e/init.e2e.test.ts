@@ -62,6 +62,22 @@ describe("reins init — sdd on a node project", () => {
     expect(implementer).toContain("docs/four-rs.md");
     expect(implementer).toContain("Self-review (Four R's)");
 
+    // The Design pillar: docs render, the agent exists, and the harness references it.
+    const designReviewer = await readFile(
+      path.join(cwd, ".claude/agents/design-reviewer.md"),
+      "utf8",
+    );
+    expect(designReviewer.startsWith("---\nname: design-reviewer")).toBe(true);
+    expect(designReviewer).toContain("model: sonnet"); // cost-aware default
+    expect(designReviewer).toContain("DESIGN_BLOCK");
+    const design = await readFile(path.join(cwd, "docs/design.md"), "utf8");
+    expect(design).toContain("Slop tells");
+    expect(await exists(path.join(cwd, "docs/motion.md"))).toBe(true);
+    expect(implementer).toContain("docs/design.md");
+    expect(reviewer).toContain("docs/design.md");
+    // The on-demand design-audit command is COMMON.
+    expect(await exists(path.join(cwd, ".claude/commands/design-audit.md"))).toBe(true);
+
     // The brainstorm command is COMMON — present under sdd too.
     const brainstorm = await readFile(path.join(cwd, ".claude/commands/brainstorm.md"), "utf8");
     expect(brainstorm).toContain("$ARGUMENTS");
@@ -96,6 +112,7 @@ describe("reins init — sdd on a node project", () => {
     expect(cfg.preset).toBe("sdd");
     expect(cfg.commands.test).toBe("npm test");
     expect(cfg.verify.required).toContain("traceability");
+    expect(cfg.verify.required).toContain("design");
 
     // CLAUDE.md imports AGENTS.md and is wrapped in a managed block
     const claude = await readFile(path.join(cwd, "CLAUDE.md"), "utf8");
@@ -130,6 +147,11 @@ describe("reins init — lite", () => {
     expect(await exists(path.join(cwd, "specs/_template/requirements.md"))).toBe(false);
     // The Four R's doc is runtime-neutral — present in lite too.
     expect(await exists(path.join(cwd, "docs/four-rs.md"))).toBe(true);
+    // The Design pillar is runtime-neutral and not preset-gated — present in lite too.
+    expect(await exists(path.join(cwd, "docs/design.md"))).toBe(true);
+    expect(await exists(path.join(cwd, "docs/motion.md"))).toBe(true);
+    expect(await exists(path.join(cwd, ".claude/agents/design-reviewer.md"))).toBe(true);
+    expect(await exists(path.join(cwd, ".claude/commands/design-audit.md"))).toBe(true);
     // COMMON commands are present in lite too.
     expect(await exists(path.join(cwd, ".claude/commands/brainstorm.md"))).toBe(true);
     const autopilot = await readFile(path.join(cwd, ".claude/commands/autopilot.md"), "utf8");
@@ -214,5 +236,18 @@ describe("reins init — opencode runtime", () => {
     const implementer = await readFile(path.join(cwd, ".opencode/agents/implementer.md"), "utf8");
     expect(implementer).toContain("docs/four-rs.md");
     expect(implementer).toContain("Self-review (Four R's)");
+
+    // The Design pillar renders for opencode too (opencode frontmatter: mode, no name).
+    const designReviewer = await readFile(
+      path.join(cwd, ".opencode/agents/design-reviewer.md"),
+      "utf8",
+    );
+    expect(designReviewer).toContain("mode: subagent");
+    expect(designReviewer).not.toContain("name: design-reviewer");
+    expect(designReviewer).toContain("DESIGN_BLOCK");
+    expect(await exists(path.join(cwd, "docs/design.md"))).toBe(true);
+    expect(await exists(path.join(cwd, "docs/motion.md"))).toBe(true);
+    expect(implementer).toContain("docs/design.md");
+    expect(await exists(path.join(cwd, ".opencode/commands/design-audit.md"))).toBe(true);
   });
 });

@@ -21,6 +21,9 @@ implementer's Self-review claims against the diff** — it does not re-derive th
 - **Security is out of scope.** Injection, secrets, auth, deserialization, hostile input → the
   **`security-reviewer`** (checkpoint C5). "Risk" here means **blast radius + reversibility**, *not*
   security risk.
+- **Design is out of scope.** Visual quality, "AI slop", design-system fidelity, accessibility, and
+  motion → the **`design-reviewer`** (`docs/design.md`, `docs/motion.md`). The Four R's judge the code
+  as written; the design-reviewer judges what the user sees.
 - **Orphans stay in the general review.** Performance / algorithmic complexity (`architecture.md`'s "no
   IO in tight loops"), test isolation (`conventions.md`'s "temp dirs, no shared global state"), and
   duplication/maintainability are **not** folded into any R — they remain the reviewer's general

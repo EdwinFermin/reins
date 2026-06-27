@@ -12,6 +12,7 @@ const CLAUDE_AGENT_TEMPLATES: Record<string, string> = {
   implementer: "common/.claude/agents/implementer.md.eta",
   reviewer: "common/.claude/agents/reviewer.md.eta",
   "security-reviewer": "common/.claude/agents/security-reviewer.md.eta",
+  "design-reviewer": "common/.claude/agents/design-reviewer.md.eta",
   spec_author: "sdd/.claude/agents/spec_author.md.eta",
 };
 
@@ -20,6 +21,7 @@ const OPENCODE_AGENT_TEMPLATES: Record<string, string> = {
   implementer: "common/.opencode/agents/implementer.md.eta",
   reviewer: "common/.opencode/agents/reviewer.md.eta",
   "security-reviewer": "common/.opencode/agents/security-reviewer.md.eta",
+  "design-reviewer": "common/.opencode/agents/design-reviewer.md.eta",
   spec_author: "sdd/.opencode/agents/spec_author.md.eta",
 };
 

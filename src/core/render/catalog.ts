@@ -30,6 +30,8 @@ const NEUTRAL: TemplateEntry[] = [
   },
   { id: "docs-security", template: "common/docs/security.md.eta", dest: "docs/security.md" },
   { id: "docs-four-rs", template: "common/docs/four-rs.md.eta", dest: "docs/four-rs.md" },
+  { id: "docs-design", template: "common/docs/design.md.eta", dest: "docs/design.md" },
+  { id: "docs-motion", template: "common/docs/motion.md.eta", dest: "docs/motion.md" },
   {
     id: "progress-current",
     template: "common/progress/current.md.eta",
@@ -100,6 +102,11 @@ const CLAUDE: TemplateEntry[] = [
     dest: ".claude/agents/security-reviewer.md",
   },
   {
+    id: "agent-design-reviewer",
+    template: "common/.claude/agents/design-reviewer.md.eta",
+    dest: ".claude/agents/design-reviewer.md",
+  },
+  {
     id: "cmd-verify",
     template: "common/.claude/commands/reins-verify.md.eta",
     dest: ".claude/commands/reins-verify.md",
@@ -123,6 +130,11 @@ const CLAUDE: TemplateEntry[] = [
     id: "cmd-autopilot",
     template: "common/.claude/commands/autopilot.md.eta",
     dest: ".claude/commands/autopilot.md",
+  },
+  {
+    id: "cmd-design-audit",
+    template: "common/.claude/commands/design-audit.md.eta",
+    dest: ".claude/commands/design-audit.md",
   },
   { id: "claude-md", template: "common/CLAUDE.md.eta", dest: "CLAUDE.md", kind: "claude-md" },
   { id: "agents-md", template: "common/AGENTS.md.eta", dest: "AGENTS.md" },
@@ -174,6 +186,11 @@ const OPENCODE: TemplateEntry[] = [
     dest: ".opencode/agents/security-reviewer.md",
   },
   {
+    id: "agent-design-reviewer",
+    template: "common/.opencode/agents/design-reviewer.md.eta",
+    dest: ".opencode/agents/design-reviewer.md",
+  },
+  {
     id: "cmd-verify",
     template: "common/.opencode/commands/reins-verify.md.eta",
     dest: ".opencode/commands/reins-verify.md",
@@ -197,6 +214,11 @@ const OPENCODE: TemplateEntry[] = [
     id: "cmd-autopilot",
     template: "common/.opencode/commands/autopilot.md.eta",
     dest: ".opencode/commands/autopilot.md",
+  },
+  {
+    id: "cmd-design-audit",
+    template: "common/.opencode/commands/design-audit.md.eta",
+    dest: ".opencode/commands/design-audit.md",
   },
   {
     id: "opencode-plugin",

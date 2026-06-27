@@ -1,5 +1,6 @@
 import { CHECK_IDS, type CheckId, type ReinsConfig } from "../config/schema";
 import { e2eCheck, integrationCheck, lintCheck, unitCheck } from "./command-checks";
+import { designCheck } from "./design";
 import { securityCheck } from "./security";
 import { featureListCheck, traceabilityCheck } from "./state-checks";
 import type { Check, CheckContext, CheckResult } from "./types";
@@ -10,6 +11,7 @@ const REGISTRY: Record<CheckId, Check> = {
   integration: integrationCheck,
   e2e: e2eCheck,
   security: securityCheck,
+  design: designCheck,
   "feature-list": featureListCheck,
   traceability: traceabilityCheck,
 };

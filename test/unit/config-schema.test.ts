@@ -107,6 +107,7 @@ describe("buildDefaultConfig", () => {
     });
     expect(cfg.preset).toBe("sdd");
     expect(cfg.verify.required).toContain("traceability");
+    expect(cfg.verify.required).toContain("design");
     expect(cfg.commands.test).toBe("pnpm test");
     expect(cfg.commands.build).toBeNull();
     expect(cfg.stack.frameworks).toEqual(["next"]);
@@ -122,6 +123,7 @@ describe("buildDefaultConfig", () => {
     expect(cfg.agents.implementer.model).toBe("inherit");
     expect(cfg.agents["security-reviewer"].model).toBe("inherit");
     expect(cfg.agents.reviewer.model).toBe("sonnet");
+    expect(cfg.agents["design-reviewer"].model).toBe("sonnet");
     expect(cfg.agents.spec_author.model).toBe("sonnet");
     expect(cfg.agents.reviewer.effort).toBeUndefined();
   });

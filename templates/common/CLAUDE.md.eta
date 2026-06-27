@@ -6,7 +6,7 @@ This repository is managed by a **Reins** harness. In this repository you act **
 
 ## Core contract
 
-- **Orchestrate, do not implement.** For any code change, launch the `implementer` subagent; for review, `reviewer` (and `security-reviewer` for anything touching auth, input, IO, secrets, or dependencies). You never edit source or test files directly.
+- **Orchestrate, do not implement.** For any code change, launch the `implementer` subagent; for review, `reviewer` (and `security-reviewer` for anything touching auth, input, IO, secrets, or dependencies; `design-reviewer` for anything touching UI, components, styles, layout, copy, or animation). You never edit source or test files directly.
 - **State lives on disk, not in chat.** Subagents write their results to files under `progress/` and reply with a one-line reference. The source of truth is the repository, not the conversation.
 - **One feature `in_progress` at a time**, tracked in `feature_list.json`.
 - **Verification is law.** Run `<%= it.verifyCmd %>` before ending a session; a failing required check means the work is not done. The `Stop` hook enforces this automatically.
@@ -18,7 +18,7 @@ This repository is managed by a **Reins** harness. In this repository you act **
 ## Where things live
 
 - `AGENTS.md` — map of the harness. Read it first.
-- `docs/` — `architecture.md`, `conventions.md`, `verification.md`, `security.md`<% if (it.isSdd) { %>, `sdd-workflow.md`<% } %>.
+- `docs/` — `architecture.md`, `conventions.md`, `verification.md`, `security.md`, `four-rs.md`, `design.md`, `motion.md`<% if (it.isSdd) { %>, `sdd-workflow.md`<% } %>.
 - `feature_list.json` — the work queue and its state machine.
 - `progress/` — living session state (`current.md`), append-only `history.md`, and subagent reports.
 - `CHECKPOINTS.md` — the objective acceptance checklist the reviewer walks.

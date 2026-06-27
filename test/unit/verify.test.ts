@@ -273,6 +273,76 @@ describe("runVerify — security secret scan", () => {
   });
 });
 
+describe("runVerify — design slop scan", () => {
+  it("skips cleanly when there are no UI files", async () => {
+    const cwd = await tmp();
+    await writeFile(path.join(cwd, "server.ts"), "export const x = 1;\n");
+    const report = await runVerify({ cwd, config: makeConfig({}), only: ["design"] });
+    expect(report.results[0]?.status).toBe("skip");
+  });
+
+  it("blocks on placeholder Lorem ipsum in a UI file", async () => {
+    const cwd = await tmp();
+    await writeFile(
+      path.join(cwd, "Hero.tsx"),
+      "export const Hero = () => <p>Lorem ipsum dolor sit amet</p>;\n",
+    );
+    const report = await runVerify({ cwd, config: makeConfig({}), only: ["design"] });
+    expect(report.results[0]?.status).toBe("fail");
+    expect(report.results[0]?.details).toContain("Lorem ipsum");
+  });
+
+  it("blocks on gradient text (bg-clip-text + text-transparent)", async () => {
+    const cwd = await tmp();
+    await writeFile(
+      path.join(cwd, "Title.tsx"),
+      'export const T = () => <h1 className="bg-gradient-to-r bg-clip-text text-transparent">Hi</h1>;\n',
+    );
+    const report = await runVerify({ cwd, config: makeConfig({}), only: ["design"] });
+    expect(report.results[0]?.status).toBe("fail");
+  });
+
+  it("passes (advisory only) on a generic AI gradient at the default failOn", async () => {
+    const cwd = await tmp();
+    await writeFile(
+      path.join(cwd, "Card.tsx"),
+      'export const C = () => <div className="bg-gradient-to-r from-indigo-500 to-pink-500">x</div>;\n',
+    );
+    const report = await runVerify({ cwd, config: makeConfig({}), only: ["design"] });
+    expect(report.results[0]?.status).toBe("pass");
+    expect(report.results[0]?.summary).toContain("advisory");
+  });
+
+  it("fails on advisory tells when failOn is advisory", async () => {
+    const cwd = await tmp();
+    await writeFile(
+      path.join(cwd, "Card.tsx"),
+      'export const C = () => <div className="bg-gradient-to-r from-indigo-500 to-pink-500">x</div>;\n',
+    );
+    const config = makeConfig({ design: { slopScan: { failOn: "advisory" } } });
+    const report = await runVerify({ cwd, config, only: ["design"] });
+    expect(report.results[0]?.status).toBe("fail");
+  });
+
+  it("passes a clean UI file with no tells", async () => {
+    const cwd = await tmp();
+    await writeFile(
+      path.join(cwd, "Button.tsx"),
+      'export const B = () => <button className="px-4 py-2 rounded">Save</button>;\n',
+    );
+    const report = await runVerify({ cwd, config: makeConfig({}), only: ["design"] });
+    expect(report.results[0]?.status).toBe("pass");
+  });
+
+  it("can be disabled via config", async () => {
+    const cwd = await tmp();
+    await writeFile(path.join(cwd, "Hero.tsx"), "<p>Lorem ipsum</p>\n");
+    const config = makeConfig({ design: { slopScan: { enabled: false } } });
+    const report = await runVerify({ cwd, config, only: ["design"] });
+    expect(report.results[0]?.status).toBe("skip");
+  });
+});
+
 describe("resolveProfile + parseCheckIds", () => {
   it("prefers --only, then per-hook, then required", () => {
     const config = makeConfig({

@@ -10,7 +10,7 @@ You are the **implementer**. You take exactly **one** feature from `pending`/`in
 
 ## Protocol
 
-1. Read `AGENTS.md`, `docs/architecture.md`, `docs/conventions.md`, and `docs/four-rs.md` (the review contract you build to).
+1. Read `AGENTS.md`, `docs/architecture.md`, `docs/conventions.md`, and `docs/four-rs.md` (the review contract you build to). For any UI-touching work, also read `docs/design.md` and `docs/motion.md` — build to them and run their **pre-flight check** (infer the brief, reuse the design system, ship every state, walk the Slop-tells list) before handing off.
 <% if (it.isSdd) { %>2. Read the feature's approved spec in `specs/<feature>/` (`requirements.md`, `design.md`, `tasks.md`). Implement strictly what the spec says — no more. Work through the tasks `T1..Tn` and check them off in `tasks.md` as you go.
 <% } else { %>2. Pick one `pending` feature from `feature_list.json` and set it to `in_progress`. Write a 3–5 bullet plan into `progress/current.md`.
 <% } %>3. Implement following `docs/conventions.md`. Every change to behavior ships with its test in the same step.

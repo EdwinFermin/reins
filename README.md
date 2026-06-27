@@ -28,8 +28,8 @@ When an agent edits your repo freely, you get drift, unverifiable changes, and n
 guard rails. Reins makes the repository itself the control surface:
 
 - **Disjoint roles** — a `leader` orchestrates and never writes code; an
-  `implementer` does one feature at a time; a `reviewer` and `security-reviewer`
-  approve or reject.
+  `implementer` does one feature at a time; a `reviewer`, `security-reviewer`, and
+  `design-reviewer` approve or reject.
 - **State on disk, not chat** — `progress/` (append-only history + subagent
   reports) and `feature_list.json` (one feature in progress at a time) survive
   restarts and context limits.
@@ -40,15 +40,20 @@ guard rails. Reins makes the repository itself the control surface:
 - **The Four R's** — beyond the mechanical gate, every change is reviewed against an
   explicit contract — **Risk, Readability, Reliability, Resilience** — that the
   `implementer` builds to and the `reviewer` audits (see `docs/four-rs.md`).
+- **Design quality** — UI changes are held to an anti-"AI slop" contract
+  (`docs/design.md` + `docs/motion.md`): an implementer pre-flight, six design
+  disciplines, and a "slop tells" blocklist — enforced both by a deterministic
+  `reins verify --only design` scan and a `design-reviewer` that blocks
+  generated-looking, design-system-breaking, or inaccessible UI.
 - **Idempotent & updatable** — `reins init` never clobbers your files;
   `reins update` migrates the harness with a three-way merge that keeps your edits.
 
 ## Presets
 
-| Preset     | What you get                                                                                                                                                          |
-| ---------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| **`lite`** | `leader` / `implementer` / `reviewer` / `security-reviewer`, the verification gate, and the **Four R's** review contract (Risk, Readability, Reliability, Resilience) |
-| **`sdd`**  | everything in `lite`, plus a Spec-Driven layer: `spec_author`, EARS requirements, a **human approval gate** before coding, and **requirement↔test traceability**      |
+| Preset     | What you get                                                                                                                                                                                                                         |
+| ---------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| **`lite`** | `leader` / `implementer` / `reviewer` / `security-reviewer` / `design-reviewer`, the verification gate, the **Four R's** review contract (Risk, Readability, Reliability, Resilience), and the **Design quality** anti-slop contract |
+| **`sdd`**  | everything in `lite`, plus a Spec-Driven layer: `spec_author`, EARS requirements, a **human approval gate** before coding, and **requirement↔test traceability**                                                                     |
 
 ## Runtimes
 
@@ -77,13 +82,13 @@ The runtime-neutral parts (`docs/`, `CHECKPOINTS.md`, `feature_list.json`,
 
 ```
 .claude/
-  agents/            leader, implementer, reviewer, security-reviewer (+ spec_author for sdd)
-  commands/          reins-verify, reins-status, next-feature, autopilot, brainstorm (+ new-spec, approve-spec, validate-discovery for sdd)
+  agents/            leader, implementer, reviewer, security-reviewer, design-reviewer (+ spec_author for sdd)
+  commands/          reins-verify, reins-status, next-feature, autopilot, brainstorm, design-audit (+ new-spec, approve-spec, validate-discovery for sdd)
   settings.json      hooks (verify on edit/stop, telemetry on SubagentStop) + permission allowlist
 CLAUDE.md            root instructions; imports @AGENTS.md
 AGENTS.md            navigation map of the harness
 CHECKPOINTS.md       objective review checklist (each maps to an executable check)
-docs/                architecture, conventions, verification, security, four-rs (+ sdd-workflow)
+docs/                architecture, conventions, verification, security, four-rs, design, motion (+ sdd-workflow)
 feature_list.json    the work queue + its state machine
 progress/            current.md, history.md (append-only), subagent reports, telemetry.jsonl
 specs/_template/     requirements (EARS) / design / tasks   (sdd only)
@@ -135,7 +140,8 @@ doctor reports drift.
 ### `reins verify`
 
 Run the verification gate: `lint`, `unit`, `integration`, `e2e`, `security`
-(dependency audit + secret scan), `feature-list`, and (sdd) `traceability`.
+(dependency audit + secret scan), `design` (a deterministic UI "slop tells" scan;
+skips when there are no UI files), `feature-list`, and (sdd) `traceability`.
 Exit `0` ok, `1` a required check failed, and `2` + a block message under the
 `PostToolUse` / `Stop` / `SubagentStop` hooks.
 
@@ -167,7 +173,7 @@ Register a feature in `feature_list.json`.
 ### `reins add-agent <role>`
 
 Add a subagent from a template (`leader`, `implementer`, `reviewer`,
-`security-reviewer`, `spec_author`, or a custom role via `--from`).
+`security-reviewer`, `design-reviewer`, `spec_author`, or a custom role via `--from`).
 
 `--name <id>` · `--tools "Read, Grep, …"` · `--from <role>` ·
 `--model <alias|id|inherit>` · `--effort <low|medium|high|xhigh|max>` ·
@@ -236,6 +242,19 @@ with `/brainstorm` first.
 
 ```
 /autopilot
+```
+
+### `/design-audit [path]`
+
+Audits existing UI for "AI slop" and design-system violations on demand, outside
+the feature flow. The `leader` scopes a set of UI files (a path/component you name,
+or the primary surfaces) and runs the `design-reviewer` over them against
+`docs/design.md` + `docs/motion.md`, reporting `[block]` vs `[advisory]` findings
+and what to fix first. It audits only — queue the fixes with `/brainstorm`.
+
+```
+/design-audit src/components
+/design-audit
 ```
 
 ### `/reins-verify`
@@ -328,8 +347,9 @@ first).
   "preset": "sdd",
   "stack": { "language": "node", "packageManager": "pnpm" },
   "commands": { "test": "pnpm test", "lint": "pnpm run lint", "e2e": null },
-  "verify": { "required": ["lint", "unit", "security", "feature-list", "traceability"] },
+  "verify": { "required": ["lint", "unit", "security", "design", "feature-list", "traceability"] },
   "security": { "depsAudit": { "failOn": "high" }, "secretScan": { "failOnAny": true } },
+  "design": { "slopScan": { "enabled": true, "failOn": "block" } },
   "agents": {
     "reviewer": { "model": "sonnet" },
     "spec_author": { "model": "sonnet", "effort": "medium" },
@@ -349,8 +369,8 @@ with, so cheaper models handle the less critical work:
   session's effort. Available levels depend on the model (validated by Claude
   Code at runtime).
 
-New installs default `reviewer` and `spec_author` to `sonnet` and leave
-`leader`, `implementer`, and `security-reviewer` on `inherit`. Existing
+New installs default `reviewer`, `design-reviewer`, and `spec_author` to `sonnet`
+and leave `leader`, `implementer`, and `security-reviewer` on `inherit`. Existing
 harnesses keep `inherit` everywhere until you add an `agents` section to
 `reins.config.json` and run `reins update`. Per-file overrides:
 `reins add-agent … --model haiku --effort low`.
