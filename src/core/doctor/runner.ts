@@ -1,5 +1,6 @@
 import path from "node:path";
 import { loadConfig } from "../config/load";
+import { isExpired, localIsoDate } from "../verify/audit";
 import { AgentModelSchema, EFFORT_LEVELS, type ReinsConfig } from "../config/schema";
 import { GIT_EXCLUDE_REL, gitExcludeEntries } from "../fs/git-exclude";
 import { hasManagedBlock } from "../fs/markers";
@@ -75,16 +76,52 @@ function semverLt(a: string, b: string): boolean {
   return false;
 }
 
+const EXPIRY_WARN_DAYS = 14;
+
+/** Doctor view of `security.depsAudit.ignore`: expired fails, expiring soon warns. */
+export function depsAllowlistResult(cfg: ReinsConfig, now: Date): DoctorResult | null {
+  const entries = cfg.security.depsAudit.ignore;
+  if (entries.length === 0) return null;
+  const expired = entries.filter((e) => isExpired(e, now));
+  if (expired.length) {
+    return result(
+      "deps-allowlist",
+      "fail",
+      expired.map((e) => `ignore for ${e.id} expired on ${e.until}, re-evaluate`).join("; "),
+    );
+  }
+  const soon = new Date(now);
+  soon.setDate(soon.getDate() + EXPIRY_WARN_DAYS);
+  const soonIso = localIsoDate(soon);
+  const expiring = entries.filter((e) => e.until <= soonIso);
+  const earliest = entries.map((e) => e.until).sort()[0];
+  if (expiring.length) {
+    return result(
+      "deps-allowlist",
+      "warn",
+      `${expiring.length} allowlist entr${expiring.length === 1 ? "y" : "ies"} expiring within ` +
+        `${EXPIRY_WARN_DAYS} days (${expiring.map((e) => `${e.id} on ${e.until}`).join(", ")})`,
+    );
+  }
+  return result(
+    "deps-allowlist",
+    "ok",
+    `${entries.length} allowlisted advisor${entries.length === 1 ? "y" : "ies"}, earliest expiry ${earliest}`,
+  );
+}
+
 /** Inspect the installed harness for completeness and coherence. */
 export async function runDoctor(cwd: string, cliVersion: string): Promise<DoctorReport> {
   const results: DoctorResult[] = [];
 
   const manifest = await readManifest(cwd);
   let config: ReinsConfig | null = null;
+  let configError: string | null = null;
   try {
     config = await loadConfig(cwd);
-  } catch {
+  } catch (err) {
     config = null;
+    configError = (err as Error).message;
   }
 
   results.push(
@@ -95,7 +132,11 @@ export async function runDoctor(cwd: string, cliVersion: string): Promise<Doctor
   results.push(
     config
       ? result("config", "ok", `preset ${config.preset}, stack ${config.stack.language}`)
-      : result("config", "fail", "reins.config.json missing or invalid"),
+      : result(
+          "config",
+          "fail",
+          configError ? `reins.config.json invalid — ${configError}` : "reins.config.json missing",
+        ),
   );
 
   if (!manifest || !config) {
@@ -218,6 +259,10 @@ export async function runDoctor(cwd: string, cliVersion: string): Promise<Doctor
   // feature_list.json (reuse the verify invariant)
   const fl = await featureListCheck({ cwd, config: cfg, changed: false });
   results.push(result("feature-list", fl.status === "fail" ? "fail" : "ok", fl.summary));
+
+  // Dependency-audit allowlist: every exception must still be in date.
+  const allowlist = depsAllowlistResult(cfg, new Date());
+  if (allowlist) results.push(allowlist);
 
   // Ghost mode: the harness is kept out of git via .git/info/exclude.
   if (manifest.gitExcluded) {

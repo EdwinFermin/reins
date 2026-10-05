@@ -70,14 +70,53 @@ export const DesignGatesSchema = z.object({
     .default({}),
 });
 
+export const AUDIT_TOOLS = [
+  "auto",
+  "npm",
+  "pnpm",
+  "yarn",
+  "pip-audit",
+  "cargo-audit",
+  "govulncheck",
+] as const;
+export const AUDIT_SEVERITIES = ["low", "moderate", "high", "critical"] as const;
+
+/** A calendar date (YYYY-MM-DD) that actually exists. */
+const IsoDateSchema = z
+  .string()
+  .regex(/^\d{4}-\d{2}-\d{2}$/, "expected a date as YYYY-MM-DD")
+  .refine((v) => {
+    const d = new Date(`${v}T00:00:00Z`);
+    return !Number.isNaN(d.getTime()) && d.toISOString().slice(0, 10) === v;
+  }, "not a valid calendar date");
+
+/**
+ * One allowlisted advisory. `id` is any identifier the audit tool reports
+ * (GHSA-…, CVE-…, PYSEC-…, RUSTSEC-…, GO-…, or an npm advisory number). Both
+ * `reason` and `until` are mandatory so an exception is always justified and
+ * always comes back up for review.
+ */
+export const AuditIgnoreSchema = z
+  .object({
+    id: z
+      .string({ required_error: "id is required" })
+      .trim()
+      .regex(/^[A-Za-z0-9][A-Za-z0-9._:-]*$/, "expected an advisory ID like GHSA-xxxx-xxxx-xxxx"),
+    reason: z
+      .string({ required_error: "reason is required (why is this advisory acceptable?)" })
+      .trim()
+      .min(1, "reason is required (why is this advisory acceptable?)"),
+    until: IsoDateSchema.describe("Last day the exception applies; verify fails after it."),
+  })
+  .strict();
+
 export const SecurityGatesSchema = z.object({
   depsAudit: z
     .object({
       enabled: z.boolean().default(true),
-      tool: z
-        .enum(["auto", "npm", "pnpm", "yarn", "pip-audit", "cargo-audit", "govulncheck"])
-        .default("auto"),
-      failOn: z.enum(["low", "moderate", "high", "critical"]).default("high"),
+      tool: z.enum(AUDIT_TOOLS).default("auto"),
+      failOn: z.enum(AUDIT_SEVERITIES).default("high"),
+      ignore: z.array(AuditIgnoreSchema).default([]),
     })
     .default({}),
   secretScan: z
@@ -88,6 +127,21 @@ export const SecurityGatesSchema = z.object({
     })
     .default({}),
 });
+
+/**
+ * How `verify --hook Stop` avoids trapping a session in a loop it cannot fix:
+ * - baselinePreexisting: dependency findings already present when the session
+ *   started (same advisories, same lockfile) warn instead of blocking.
+ * - maxRepeatBlocks: after this many identical consecutive blocks with no file
+ *   changes in between, stop blocking (0 disables the guard).
+ */
+export const StopPolicySchema = z
+  .object({
+    baselinePreexisting: z.boolean().default(true),
+    maxRepeatBlocks: z.number().int().min(0).default(3),
+  })
+  .strict()
+  .default({});
 
 export const ReinsConfigSchema = z
   .object({
@@ -113,6 +167,7 @@ export const ReinsConfigSchema = z
           .array(z.enum(CHECK_IDS))
           .default(["lint", "unit", "security", "design", "feature-list"]),
         perHook: z.record(z.enum(HOOK_NAMES), z.array(z.enum(CHECK_IDS))).default({}),
+        stop: StopPolicySchema,
       })
       .default({}),
     security: SecurityGatesSchema.default({}),
@@ -155,3 +210,7 @@ export type CommandSpec = z.infer<typeof CommandSchema>;
 export type AgentRole = (typeof AGENT_ROLES)[number];
 export type EffortLevel = (typeof EFFORT_LEVELS)[number];
 export type AgentPolicy = z.infer<typeof AgentPolicySchema>;
+export type AuditTool = (typeof AUDIT_TOOLS)[number];
+export type AuditSeverity = (typeof AUDIT_SEVERITIES)[number];
+export type AuditIgnore = z.infer<typeof AuditIgnoreSchema>;
+export type StopPolicy = z.infer<typeof StopPolicySchema>;

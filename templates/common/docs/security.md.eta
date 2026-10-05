@@ -11,7 +11,29 @@
 ## Dependencies
 
 - Every new dependency must be necessary, reputable, and pinned.
-- The dependency audit blocks at severity `high` or above by default (tune in `reins.config.json` → `security.depsAudit.failOn`).
+- The dependency audit blocks at severity `high` or above by default (tune in `reins.config.json` → `security.depsAudit.failOn`). `tool: "auto"` picks the auditor from the stack: `npm` / `pnpm` / `yarn`, `pip-audit`, `cargo-audit`, or `govulncheck`. Findings a tool can't grade (pip-audit, cargo-audit, govulncheck report no severity) always count.
+
+### Allowlisting an advisory (no fix available)
+
+When an advisory has no patched release, or the fix needs a framework upgrade you can't take yet, allowlist **that advisory** instead of lowering `failOn` (which would also hide every *new* finding):
+
+```json
+"security": {
+  "depsAudit": {
+    "failOn": "high",
+    "ignore": [
+      { "id": "GHSA-vfj7-8cjw-p6xm", "reason": "no patched braces release; dev tooling only", "until": "2026-11-05" }
+    ]
+  }
+}
+```
+
+- `id` — any ID the auditor reports: `GHSA-…`, `CVE-…`, `PYSEC-…`, `RUSTSEC-…`, `GO-…`, or an npm advisory number. Matching is exact (case-insensitive).
+- `reason` — **required**. Why the risk is acceptable (not reachable, dev-only, no fix exists…).
+- `until` — **required**, `YYYY-MM-DD`, inclusive. After it, the entry stops applying and `<%= it.verifyCmd %>` fails with `ignore for <id> expired on <date>, re-evaluate` — check for a fix, then remove or renew the entry. `reins doctor` warns 14 days ahead.
+- An allowlisted **root** advisory also suppresses everything it causes further down the dependency chain (npm's `via` chain), so one entry covers one root cause, not one row.
+- Nothing is hidden: the gate reports it, e.g. `no vulnerabilities >= high (52 ignored via 3 allowlisted advisories, earliest expiry 2026-11-05)`, and lists entries that no longer match anything so you can delete them.
+- **Adding, extending, or renewing an entry is a human decision.** Agents must not edit the allowlist to get the gate green; the `security-reviewer` blocks unapproved entries.
 
 ## Input handling
 

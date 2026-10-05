@@ -1,6 +1,24 @@
 import type { CheckId, ReinsConfig } from "../config/schema";
 
-export type CheckStatus = "pass" | "fail" | "skip";
+/** `warn` = a failure the Stop policy downgraded (reported, never blocking). */
+export type CheckStatus = "pass" | "fail" | "skip" | "warn";
+
+/** What the dependency audit found, in the shape the Stop baseline compares. */
+export interface DepsAuditMeta {
+  tool: string;
+  /** Hash of the project's lockfiles at audit time (null when there are none). */
+  lockfileHash: string | null;
+  /** Keys (GHSA or primary ID) of the non-allowlisted advisories that block. */
+  blockingAdvisories: string[];
+  /** IDs of allowlist entries past their `until` date. */
+  expired: string[];
+}
+
+export interface SecurityMeta {
+  deps: DepsAuditMeta | null;
+  depsFailed: boolean;
+  secretsFailed: boolean;
+}
 
 export interface CheckResult {
   id: CheckId;
@@ -8,6 +26,8 @@ export interface CheckResult {
   summary: string;
   durationMs: number;
   details?: string;
+  /** Structured audit data, set by the security check. */
+  security?: SecurityMeta;
 }
 
 export interface CheckContext {
@@ -15,6 +35,8 @@ export interface CheckContext {
   config: ReinsConfig;
   /** Limit work to changed/staged files where a check supports it. */
   changed: boolean;
+  /** Clock override (tests); allowlist expiry is evaluated against it. */
+  now?: Date;
 }
 
 export type Check = (ctx: CheckContext) => Promise<CheckResult>;
@@ -42,4 +64,5 @@ export interface SubResult {
   summary: string;
   durationMs: number;
   details?: string;
+  deps?: DepsAuditMeta;
 }

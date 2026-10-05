@@ -1,2 +1,4 @@
 # Backups Reins makes of files it had to replace
 .reins-backup/
+# Per-session verify state (Stop baseline, repeat-block guard)
+.reins/cache/

@@ -25,6 +25,7 @@ Reply to the leader with one line: `SECURITY_OK -> progress/review_<feature>.md`
 ## Hard rules
 
 - Never approve when the dependency audit or secret scan fails.
+- Any added or extended `security.depsAudit.ignore` entry in `reins.config.json` is a `[block]` finding unless the human already approved it: allowlisting an advisory is a human decision (see `docs/security.md`), never a way to get the gate green.
 - Prefer false positives to false negatives: when unsure, flag it and explain.
 - Never edit code; recommend the fix instead.
 - Write your `progress/` reports in English, regardless of the conversation language.

@@ -347,8 +347,22 @@ first).
   "preset": "sdd",
   "stack": { "language": "node", "packageManager": "pnpm" },
   "commands": { "test": "pnpm test", "lint": "pnpm run lint", "e2e": null },
-  "verify": { "required": ["lint", "unit", "security", "design", "feature-list", "traceability"] },
-  "security": { "depsAudit": { "failOn": "high" }, "secretScan": { "failOnAny": true } },
+  "verify": {
+    "required": ["lint", "unit", "security", "design", "feature-list", "traceability"],
+    // Stop doesn't block on findings that pre-date the session, and gives up
+    // after 3 identical blocks with no file changes (see docs/verification.md).
+    "stop": { "baselinePreexisting": true, "maxRepeatBlocks": 3 },
+  },
+  "security": {
+    "depsAudit": {
+      "failOn": "high",
+      // Per-advisory exceptions: reason + expiry are mandatory. See docs/security.md.
+      "ignore": [
+        { "id": "GHSA-vfj7-8cjw-p6xm", "reason": "no patched release", "until": "2026-11-05" },
+      ],
+    },
+    "secretScan": { "failOnAny": true },
+  },
   "design": { "slopScan": { "enabled": true, "failOn": "block" } },
   "agents": {
     "reviewer": { "model": "sonnet" },

@@ -3,6 +3,17 @@ import { e2eCheck, integrationCheck, lintCheck, unitCheck } from "./command-chec
 import { designCheck } from "./design";
 import { securityCheck } from "./security";
 import { featureListCheck, traceabilityCheck } from "./state-checks";
+import {
+  applyBaseline,
+  beginSession,
+  failureFingerprint,
+  recordBaseline,
+  registerStopBlock,
+  saveSessionState,
+  SESSION_HOOKS,
+  sessionTrackingEnabled,
+  workspaceFingerprint,
+} from "./stop-guard";
 import type { Check, CheckContext, CheckResult } from "./types";
 
 const REGISTRY: Record<CheckId, Check> = {
@@ -22,6 +33,10 @@ export interface RunVerifyOptions {
   only?: CheckId[];
   hook?: string;
   changed?: boolean;
+  /** The agent session this hook fired in (Claude Code passes it on stdin). */
+  sessionId?: string | null;
+  /** Clock override for tests. */
+  now?: Date;
 }
 
 export interface VerifyReport {
@@ -29,6 +44,10 @@ export interface VerifyReport {
   results: CheckResult[];
   requiredFailed: CheckResult[];
   ok: boolean;
+  /** Non-blocking explanations from the Stop policy (baseline, repeat guard). */
+  notices: string[];
+  /** Stop would block, but the repeat guard gave up after N identical blocks. */
+  gaveUp: boolean;
 }
 
 /** Decide which checks to run: --only > per-hook profile > required. */
@@ -44,7 +63,22 @@ export function resolveProfile(opts: RunVerifyOptions): CheckId[] {
 
 export async function runVerify(opts: RunVerifyOptions): Promise<VerifyReport> {
   const profile = resolveProfile(opts);
-  const ctx: CheckContext = { cwd: opts.cwd, config: opts.config, changed: Boolean(opts.changed) };
+  const ctx: CheckContext = {
+    cwd: opts.cwd,
+    config: opts.config,
+    changed: Boolean(opts.changed),
+    now: opts.now,
+  };
+
+  const tracked =
+    Boolean(opts.hook && SESSION_HOOKS.has(opts.hook)) && sessionTrackingEnabled(opts.config);
+  const state = tracked
+    ? await beginSession(opts.cwd, {
+        sessionId: opts.sessionId ?? null,
+        fromSessionStart: false,
+        now: opts.now,
+      })
+    : null;
 
   const results: CheckResult[] = [];
   for (const id of profile) {
@@ -52,8 +86,46 @@ export async function runVerify(opts: RunVerifyOptions): Promise<VerifyReport> {
   }
 
   const required = new Set(opts.config.verify.required);
-  const requiredFailed = results.filter((r) => r.status === "fail" && required.has(r.id));
-  return { profile, results, requiredFailed, ok: requiredFailed.length === 0 };
+  const failedRequired = () => results.filter((r) => r.status === "fail" && required.has(r.id));
+  const notices: string[] = [];
+  let gaveUp = false;
+
+  if (state) {
+    recordBaseline(state, results, opts.now);
+    const stop = opts.config.verify.stop;
+    if (opts.hook === "Stop") {
+      if (stop.baselinePreexisting) notices.push(...applyBaseline(state, results));
+      const failed = failedRequired();
+      if (failed.length === 0) {
+        state.stopBlocks = null;
+      } else if (stop.maxRepeatBlocks > 0) {
+        const guard = registerStopBlock(
+          state,
+          failureFingerprint(failed),
+          await workspaceFingerprint(opts.cwd, opts.config),
+          stop.maxRepeatBlocks,
+        );
+        if (guard.gaveUp) {
+          gaveUp = true;
+          notices.push(
+            `repeated identical Stop block (${guard.count}x with no file changes), giving up; ` +
+              "run `reins verify` manually — this needs a human decision.",
+          );
+        }
+      }
+    }
+    await saveSessionState(opts.cwd, state);
+  }
+
+  const requiredFailed = failedRequired();
+  return {
+    profile,
+    results,
+    requiredFailed,
+    ok: requiredFailed.length === 0,
+    notices,
+    gaveUp,
+  };
 }
 
 /** Claude Code hooks block with exit 2; everything else uses 0/1. */
@@ -61,6 +133,8 @@ const BLOCKING_HOOKS = new Set(["PostToolUse", "Stop", "SubagentStop"]);
 
 export function computeExitCode(report: VerifyReport, hook?: string): number {
   if (report.ok) return 0;
+  // The repeat guard released the Stop hook: report the failure, don't block.
+  if (report.gaveUp && hook === "Stop") return 0;
   return hook && BLOCKING_HOOKS.has(hook) ? 2 : 1;
 }
 

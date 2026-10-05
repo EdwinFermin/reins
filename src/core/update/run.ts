@@ -80,12 +80,46 @@ async function writeNormalized(abs: string, content: string): Promise<void> {
   await writeFile(abs, normalizeText(content), "utf8");
 }
 
-async function bumpConfigVersion(cwd: string, version: string): Promise<void> {
+type Json = Record<string, unknown>;
+const isObj = (v: unknown): v is Json => typeof v === "object" && v !== null && !Array.isArray(v);
+
+function ensureObject(parent: Json, key: string): Json {
+  if (!isObj(parent[key])) parent[key] = {};
+  return parent[key] as Json;
+}
+
+/**
+ * Additive migration of `reins.config.json` (otherwise create-only): bump
+ * `harnessVersion` and surface config keys introduced by newer versions with
+ * their defaults, so they are discoverable. Never changes an existing value.
+ * Returns the keys it added.
+ */
+export async function migrateConfig(
+  cwd: string,
+  version: string,
+  apply: boolean,
+): Promise<string[]> {
   const file = path.join(cwd, "reins.config.json");
-  const raw = await readJsonIfExists<Record<string, unknown>>(file);
-  if (!raw || raw.harnessVersion === version) return;
+  const raw = await readJsonIfExists<Json>(file);
+  if (!raw) return [];
+  const added: string[] = [];
+
+  const verify = ensureObject(raw, "verify");
+  if (!isObj(verify.stop)) {
+    verify.stop = { baselinePreexisting: true, maxRepeatBlocks: 3 };
+    added.push("verify.stop");
+  }
+  const depsAudit = ensureObject(ensureObject(raw, "security"), "depsAudit");
+  if (!Array.isArray(depsAudit.ignore)) {
+    depsAudit.ignore = [];
+    added.push("security.depsAudit.ignore");
+  }
+
+  const bump = raw.harnessVersion !== version;
   raw.harnessVersion = version;
-  await writeFile(file, JSON.stringify(raw, null, 2) + "\n", "utf8");
+  if (apply && (bump || added.length))
+    await writeFile(file, JSON.stringify(raw, null, 2) + "\n", "utf8");
+  return added;
 }
 
 /** Update the harness templates to the CLI version, preserving user changes. */
@@ -195,10 +229,19 @@ export async function runUpdate(opts: RunUpdateOptions): Promise<UpdateResult> {
     }
   }
 
+  const addedKeys = await migrateConfig(cwd, opts.harnessVersion, apply);
+  if (addedKeys.length) {
+    entries.push({
+      path: "reins.config.json",
+      templateId: "reins-config",
+      action: "merged",
+      note: `added ${addedKeys.join(", ")} (defaults)`,
+    });
+  }
+
   const conflicts = entries.filter((e) => e.action === "conflict");
 
   if (apply) {
-    await bumpConfigVersion(cwd, opts.harnessVersion);
     // Re-sync the local ignore so new agents/commands from this version are covered.
     if (gitExcluded)
       await upsertGitExclude(

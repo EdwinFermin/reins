@@ -1,7 +1,10 @@
 import type { VerifyReport } from "./runner";
 
 function icon(status: string): string {
-  return status === "pass" ? "✓" : status === "fail" ? "✗" : "∘";
+  if (status === "pass") return "✓";
+  if (status === "fail") return "✗";
+  if (status === "warn") return "!";
+  return "∘";
 }
 
 function fmtMs(ms: number): string {
@@ -17,19 +20,28 @@ export function formatReport(
   for (const r of report.results) {
     const dur = r.durationMs ? `  ${fmtMs(r.durationMs)}` : "";
     lines.push(`  ${icon(r.status)} ${r.id.padEnd(13)} ${r.summary}${dur}`);
-    if (r.status === "fail" && r.details && !opts.quiet) {
+    if ((r.status === "fail" || r.status === "warn") && r.details && !opts.quiet) {
       for (const detail of r.details.split("\n").slice(0, 6)) {
         lines.push(`      ${detail}`);
       }
     }
   }
 
+  if (report.notices.length) {
+    lines.push("");
+    for (const notice of report.notices) lines.push(`  note: ${notice}`);
+  }
+
   lines.push("");
+  const warned = report.results.some((r) => r.status === "warn");
   if (report.ok) {
-    lines.push("Result: PASS");
+    lines.push(warned ? "Result: PASS (with warnings)" : "Result: PASS");
   } else {
+    const failed = report.requiredFailed.map((r) => r.id).join(", ");
     lines.push(
-      `Result: FAIL — required check(s) failed: ${report.requiredFailed.map((r) => r.id).join(", ")}`,
+      report.gaveUp
+        ? `Result: FAIL — required check(s) failed: ${failed} (not blocking: repeated identical Stop block)`
+        : `Result: FAIL — required check(s) failed: ${failed}`,
     );
   }
   lines.push("");

@@ -4,6 +4,46 @@ All notable changes to Reins are documented here. This project adheres to
 [Semantic Versioning](https://semver.org/). The harness template version tracks
 the package version, so `reins update` migrates installed harnesses to it.
 
+## 0.10.0
+
+### Dependency-audit allowlist and a Stop hook that can't loop forever
+
+Fixes a real-world trap: a project with 52 high-severity findings from 3 unfixable root advisories
+(`braces`, `node-forge`, `image-size` via metro) blocked every Stop, every turn, forever — and the
+only escape, `failOn: "critical"`, also hid every _new_ high finding.
+
+- **Per-advisory allowlist** — `security.depsAudit.ignore: [{ "id", "reason", "until" }]`. Matches
+  any ID the auditor reports (GHSA, CVE, PYSEC, RUSTSEC, GO, npm advisory number), case-insensitive.
+  An allowlisted **root** advisory also suppresses everything it causes down npm's `via` chain, so
+  one entry covers one root cause. `reason` and `until` are required (config error otherwise); once
+  `until` passes the entry stops applying and verify fails with
+  `ignore for GHSA-… expired on …, re-evaluate`. Nothing is hidden silently: the gate reports
+  `no vulnerabilities >= high (52 ignored via 3 allowlisted advisories, earliest expiry 2026-11-05)`
+  and flags entries that no longer match anything.
+- **Every auditor `tool: "auto"` can select** is now parsed into one model — npm (v7+ and v6),
+  pnpm, yarn classic and berry, pip-audit, cargo-audit, and govulncheck (called vulnerabilities
+  only). `tool` is honored when set explicitly, and Rust/Go projects get an audit for the first time.
+- **Stop baseline** (`verify.stop.baselinePreexisting`, default `true`) — SessionStart snapshots the
+  lockfiles into `.reins/cache/` (the first verify of the session is the fallback). On Stop, a
+  security failure made only of advisories that pre-date the session, with the lockfile unchanged,
+  becomes a non-blocking `warn` that names them and suggests a fix or the allowlist (surfaced to the
+  user via Claude Code's `systemMessage`). New advisories, or a lockfile change that leaves findings
+  unresolved, still block; secret leaks and expired allowlist entries always do.
+- **Repeat-block guard** (`verify.stop.maxRepeatBlocks`, default `3`, `0` = off) — after N identical
+  Stop blocks with no file changes in between, Stop stops blocking with a "repeated identical Stop
+  block, giving up" message that hands `reins verify` back to a human. Only the Stop hook is
+  released; CI and pre-commit are unaffected.
+- The session id comes from the hook's stdin payload (or `--session`); reading it never hangs a
+  manual run.
+- Readable config errors: `security.depsAudit.ignore[0].reason: reason is required …` instead of a
+  raw Zod dump, in both `reins verify` and `reins doctor`.
+- `reins doctor` checks the allowlist: **fail** on an expired entry, **warn** 14 days ahead.
+- `docs/security.md` documents the allowlist, `docs/verification.md` the Stop policy, and the
+  `security-reviewer` now blocks unapproved allowlist entries (allowlisting is a human decision).
+- **Upgrading:** `reins update` adds `verify.stop` and `security.depsAudit.ignore: []` to an existing
+  `reins.config.json` (additively — no existing value changes), refreshes the docs and agents, and
+  adds `.reins/cache/` to the managed `.gitignore` block.
+
 ## 0.9.0
 
 ### Design quality — a native anti-"AI slop" pillar
