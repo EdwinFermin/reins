@@ -3,7 +3,7 @@
 | Lane | For | Flow | Human gate |
 | --- | --- | --- | --- |
 | `quick` | typo, copy, style tweak, rename, one-line fix | implementer → gate (no queue entry, no spec, no reviewer) | none |
-| `chore` | upgrades (Expo/RN/Next SDK), dependency bumps, codemods — one feature per upgrade | `pending` → `in_progress` → implementer (upstream-guide checklist, apply → verify → fix, on a build budget) → one regression review → `done` | none |
+| `chore` | upgrades (Expo/RN/Next SDK), dependency bumps, codemods — one feature per upgrade | `pending` → `in_progress` → implementer (upstream-guide checklist, verified after each step, on a build budget) → one regression review → `done` | none |
 <% if (it.isSdd) { %>| `standard` | ordinary features and bug fixes | `pending` → leader writes `specs/<slug>/plan.md` → `spec_ready` → **human approves the plan** → `approved` → implementer + reviewer → `done` | one |
 | `full` | auth, payments, data model, architecture, large/ambiguous | `pending` → **leader** writes `discovery.md` → `needs_clarification` → **human validates intent** → **spec_author** writes spec → `spec_ready` → **human approves** → `approved` → implementer + every applicable reviewer → `done` | two |
 <% } else { %>| `standard` | ordinary features and bug fixes | `pending` → `in_progress` → implementer + reviewer → `done` | none |

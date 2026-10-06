@@ -272,6 +272,24 @@ async function subagentTranscriptPath(payload: any, cwd: string): Promise<string
   return (await pathExists(derived)) ? derived : null;
 }
 
+/**
+ * Identify a finished subagent from a SubagentStop payload: its type (from the
+ * payload, else its `.meta.json`) and transcript. Used by telemetry and by the
+ * implementer gate (`verify --hook SubagentStop`).
+ */
+export async function identifySubagent(
+  payload: any,
+  cwd: string,
+): Promise<{ agentType?: string; description?: string; transcript: string | null }> {
+  const transcript = await subagentTranscriptPath(payload ?? {}, cwd);
+  const meta = transcript ? await readMeta(transcript) : {};
+  return {
+    agentType: str(payload?.agent_type) ?? meta.agentType,
+    description: meta.description,
+    transcript,
+  };
+}
+
 /** `agent-<id>.meta.json` beside the transcript: agentType + the task description. */
 async function readMeta(transcript: string): Promise<{ agentType?: string; description?: string }> {
   try {

@@ -274,19 +274,10 @@ const OPENCODE_SDD: TemplateEntry[] = [
 /** The Claude Code `settings.json` object (hooks + stack-aware permission allowlist). */
 export function buildSettings(ctx: TemplateContext): unknown {
   return {
+    // No per-edit hook: verification runs per milestone — when the
+    // implementer finishes (SubagentStop, gated by agent type), at session end
+    // (Stop), and in CI.
     hooks: {
-      PostToolUse: [
-        {
-          matcher: "Edit|Write|MultiEdit",
-          hooks: [
-            {
-              type: "command",
-              command: "npx reins verify --hook PostToolUse --changed",
-              timeout: 120,
-            },
-          ],
-        },
-      ],
       Stop: [
         { hooks: [{ type: "command", command: "npx reins verify --hook Stop", timeout: 300 }] },
       ],
@@ -297,6 +288,15 @@ export function buildSettings(ctx: TemplateContext): unknown {
               type: "command",
               command: "npx reins telemetry record --hook SubagentStop",
               timeout: 20,
+            },
+          ],
+        },
+        {
+          hooks: [
+            {
+              type: "command",
+              command: "npx reins verify --hook SubagentStop",
+              timeout: 600,
             },
           ],
         },

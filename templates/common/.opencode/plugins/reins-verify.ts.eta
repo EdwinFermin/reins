@@ -4,8 +4,11 @@
  * opencode has no settings.json command-hooks, so the gate is wired here as an
  * auto-loaded plugin:
  *   - session.created -> harness status report (≈ Claude SessionStart)
- *   - file.edited     -> quick gate on changed files (≈ Claude PostToolUse)
  *   - session.idle    -> full gate when the session goes idle (≈ Claude Stop)
+ *
+ * There is no per-edit gate: verification runs per milestone (the implementer
+ * self-verifies when its code is complete; the gate runs when the session
+ * goes idle and in CI), never on half-written states between edits.
  *
  * The `--hook` names are shared with Claude Code so `verify.perHook` in
  * reins.config.json applies to both runtimes.
@@ -26,9 +29,6 @@ export const ReinsVerify = async ({ $ }) => {
   return {
     "session.created": async () => {
       await run(["status", "--hook", "SessionStart"]);
-    },
-    "file.edited": async () => {
-      await run(["verify", "--hook", "PostToolUse", "--changed"]);
     },
     "session.idle": async () => {
       await run(["verify", "--hook", "Stop"]);

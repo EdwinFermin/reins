@@ -1,6 +1,6 @@
 {
   "name": "@fermin-dev/reins",
-  "version": "0.11.0",
+  "version": "0.12.0",
   "description": "Install and orchestrate a controlled multi-agent harness on top of an existing project, for Claude Code or opencode.",
   "keywords": [
     "claude",

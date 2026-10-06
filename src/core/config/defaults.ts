@@ -23,8 +23,8 @@ export function buildDefaultConfig(opts: {
 
   const required: CheckId[] =
     preset === "sdd"
-      ? ["lint", "unit", "security", "design", "feature-list", "traceability"]
-      : ["lint", "unit", "security", "design", "feature-list"];
+      ? ["lint", "typecheck", "unit", "security", "design", "feature-list", "traceability"]
+      : ["lint", "typecheck", "unit", "security", "design", "feature-list"];
 
   // `.parse` accepts unknown input and fills every schema default, so the
   // result is guaranteed valid and fully typed.
@@ -50,9 +50,11 @@ export function buildDefaultConfig(opts: {
     verify: {
       required,
       perHook: {
-        // Per-edit: lint only the changed files. Tests run when the implementer
-        // self-verifies (`verify --changed` → related tests) and at Stop/CI.
-        PostToolUse: ["lint"],
+        // Verify per milestone, not per edit: the gate runs when the implementer
+        // finishes (SubagentStop), at session end (Stop), and in CI — never on
+        // the half-written states between edits.
+        PostToolUse: [],
+        SubagentStop: required,
         PreCommit: ["lint", "security", "design"],
         Stop: required,
         CI: required,

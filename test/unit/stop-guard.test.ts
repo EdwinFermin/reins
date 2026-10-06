@@ -256,7 +256,7 @@ describe("Stop repeat-block guard", () => {
 });
 
 describe("reins update — config migration", () => {
-  it("adds verify.stop and depsAudit.ignore without touching existing values", async () => {
+  it("adds new keys with defaults without touching existing values", async () => {
     const cwd = await mkdtemp(path.join(os.tmpdir(), "reins-migrate-"));
     const file = path.join(cwd, "reins.config.json");
     await writeFile(
@@ -268,31 +268,34 @@ describe("reins update — config migration", () => {
       }),
     );
 
-    expect(await migrateConfig(cwd, "0.10.0", false)).toEqual([
+    expect(await migrateConfig(cwd, "0.12.0", false)).toEqual([
       "verify.stop",
       "security.depsAudit.ignore",
       "commands.lintChanged",
       "commands.testChanged",
       "verify.cache",
+      "verify.gateAgents",
       "router",
     ]);
     expect(JSON.parse(await readFile(file, "utf8")).harnessVersion).toBe("0.9.0"); // dry run
 
-    await migrateConfig(cwd, "0.10.0", true);
+    await migrateConfig(cwd, "0.12.0", true);
     const cfg = JSON.parse(await readFile(file, "utf8"));
     expect(cfg.verify).toEqual({
-      required: ["unit"],
+      required: ["unit"], // no typecheck command configured → untouched
       stop: { baselinePreexisting: true, maxRepeatBlocks: 3 },
       cache: true,
+      perHook: {},
+      gateAgents: ["implementer"],
     });
     expect(cfg.security.depsAudit).toEqual({ failOn: "critical", ignore: [] });
     // No lint/test command configured → no scoped variant either.
     expect(cfg.commands).toEqual({ lintChanged: null, testChanged: null });
     expect(cfg.router).toEqual({ provider: "auto" });
-    expect(await migrateConfig(cwd, "0.10.0", true)).toEqual([]);
+    expect(await migrateConfig(cwd, "0.12.0", true)).toEqual([]);
   });
 
-  it("detects scoped lint/test commands and replaces only the old per-edit default", async () => {
+  it("turns off the old per-edit defaults, adds typecheck, and detects scoped commands", async () => {
     const cwd = await mkdtemp(path.join(os.tmpdir(), "reins-migrate-"));
     await writeFile(
       path.join(cwd, "package.json"),
@@ -304,28 +307,46 @@ describe("reins update — config migration", () => {
     const file = path.join(cwd, "reins.config.json");
     const base = {
       harnessVersion: "0.10.0",
-      commands: { test: "npm test", lint: "npm run lint" },
+      commands: { test: "npm test", lint: "npm run lint", typecheck: "npx tsc --noEmit" },
     };
+    // keel's real shape: explicit Stop/CI profiles, no typecheck anywhere.
     await writeFile(
       file,
-      JSON.stringify({ ...base, verify: { perHook: { PostToolUse: ["lint", "unit"] } } }),
+      JSON.stringify({
+        ...base,
+        verify: {
+          required: ["lint", "unit", "security"],
+          perHook: {
+            PostToolUse: ["lint", "unit"],
+            PreCommit: ["lint", "security"],
+            Stop: ["lint", "unit", "security"],
+          },
+        },
+      }),
     );
-    await migrateConfig(cwd, "0.11.0", true);
+    await migrateConfig(cwd, "0.12.0", true);
     const cfg = JSON.parse(await readFile(file, "utf8"));
     expect(cfg.commands.lintChanged).toBe("npx eslint {files}");
     expect(cfg.commands.testChanged).toBe("npx jest --findRelatedTests --passWithNoTests {files}");
-    expect(cfg.verify.perHook.PostToolUse).toEqual(["lint"]);
+    expect(cfg.verify.perHook.PostToolUse).toEqual([]);
+    expect(cfg.verify.required).toEqual(["lint", "typecheck", "unit", "security"]);
+    expect(cfg.verify.perHook.Stop).toEqual(["lint", "typecheck", "unit", "security"]);
+    expect(cfg.verify.perHook.PreCommit).toEqual(["lint", "security"]); // not a full profile
 
-    // A profile the user chose is theirs.
-    await writeFile(
-      file,
-      JSON.stringify({ ...base, verify: { perHook: { PostToolUse: ["lint", "unit", "design"] } } }),
-    );
-    await migrateConfig(cwd, "0.11.0", true);
-    expect(JSON.parse(await readFile(file, "utf8")).verify.perHook.PostToolUse).toEqual([
-      "lint",
-      "unit",
-      "design",
-    ]);
+    // 0.11's [lint] default goes too; a profile the user chose is theirs.
+    for (const [before, after] of [
+      [["lint"], []],
+      [
+        ["lint", "unit", "design"],
+        ["lint", "unit", "design"],
+      ],
+    ]) {
+      await writeFile(
+        file,
+        JSON.stringify({ ...base, verify: { perHook: { PostToolUse: before } } }),
+      );
+      await migrateConfig(cwd, "0.12.0", true);
+      expect(JSON.parse(await readFile(file, "utf8")).verify.perHook.PostToolUse).toEqual(after);
+    }
   });
 });

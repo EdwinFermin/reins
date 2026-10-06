@@ -82,7 +82,8 @@ describe("reins init — opencode runtime (sdd)", () => {
     const plugin = await readFile(path.join(cwd, ".opencode/plugins/reins-verify.ts"), "utf8");
     expect(plugin).toContain("npx reins");
     expect(plugin).toContain("session.idle");
-    expect(plugin).toContain("file.edited");
+    expect(plugin).not.toContain("file.edited"); // no per-edit gate
+    expect(plugin).toContain("session.idle");
 
     // opencode.json is valid and carries the stack-aware permission policy.
     const oc = JSON.parse(await readFile(path.join(cwd, "opencode.json"), "utf8"));

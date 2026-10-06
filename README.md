@@ -153,19 +153,28 @@ Exit `0` ok, `1` a required check failed, and `2` + a block message under the
 `--hook <PostToolUse|Stop|SubagentStop|PreCommit|CI>` · `--only <a,b,…>` ·
 `--changed` · `--no-cache` · `--quiet, -q` · `--cwd <dir>` · `--json`
 
-The gate is tuned so the slow parts run once, not on every edit:
+The gate runs **per milestone, not per edit** — a change in progress passes
+through broken intermediate states, and checking those only costs time:
 
-- **Per edit** (`PostToolUse`) — lint on just the edited file
-  (`commands.lintChanged`, e.g. `npx eslint {files}`). Tests no longer run on
-  every `Edit`/`Write`.
-- **`--changed`** — lint + only the tests **related** to the changed files
-  (`commands.testChanged`, e.g. `npx jest --findRelatedTests … {files}` or
-  `npx vitest related --run {files}`), detected from your stack. Without a scoped
-  command it falls back to the full one.
-- **Result cache** — a passing lint/test run is recorded against a fingerprint of
-  the working tree; the next run on an identical tree (reviewer after implementer,
-  Stop after the leader) reuses it. Failures are never cached, CI never uses the
-  cache, and `--no-cache` / `"verify": { "cache": false }` forces a real run.
+- **While editing** — nothing. (No `PostToolUse` hook; the implementer may run a
+  targeted test to debug.)
+- **Implementer finishes** — the full gate, **enforced** by a `SubagentStop`
+  hook for the agents in `verify.gateAgents` (default `implementer`): a red tree
+  sends it back to fix. Reviewers and explorers are never gated. The same
+  baseline and repeat-guard policy as `Stop` keeps it from looping.
+- **Chore checkpoints** — after each step of an upgrade checklist,
+  `--changed` runs lint + only the tests **related** to the changed files
+  (`commands.lintChanged` / `commands.testChanged`, detected from your stack —
+  e.g. `npx jest --findRelatedTests … {files}`, `npx vitest related --run {files}`)
+  plus typecheck.
+- **Session end and CI** — the full gate, with lint/typecheck/test passes reused
+  from a **result cache** when the working tree is unchanged. Failures are never
+  cached, CI never uses the cache, and `--no-cache` / `"verify": { "cache": false }`
+  forces a real run.
+
+`typecheck` (`commands.typecheck`) is part of the default gate.
+`verify.perHook.<Hook>` lists exactly the checks a hook runs (an empty list runs
+nothing; an unlisted hook runs `required`).
 
 ### `reins route "<task>"`
 

@@ -9,7 +9,7 @@ This repository is managed by a **Reins** harness. In this repository you act **
 - **Orchestrate, do not implement.** For any code change, launch the `implementer` subagent; for review, `reviewer` (and `security-reviewer` for anything touching auth, input, IO, secrets, or dependencies; `design-reviewer` for anything touching UI, components, styles, layout, copy, or animation). You never edit source or test files directly.
 - **State lives on disk, not in chat.** Subagents write their results to files under `progress/` and reply with a one-line reference. The source of truth is the repository, not the conversation.
 - **One feature `in_progress` at a time**, tracked in `feature_list.json`.
-- **Verification is law.** Run `<%= it.verifyCmd %>` before ending a session; a failing required check means the work is not done. The `Stop` hook enforces this automatically.
+- **Verification is law — per milestone, not per edit.** The gate runs when the implementer finishes (the `SubagentStop` hook blocks a red hand-off) and before the session ends (the `Stop` hook). A failing required check means the work is not done.
 - **Artifacts in English.** Every file written to disk — plans, discovery docs, specs, brainstorm files, progress reports — is in English, regardless of the conversation language.
 <%~ include("partials/contract-flow.md.eta", it) %>
 

@@ -4,6 +4,10 @@ export interface HookPayload {
   sessionId: string | null;
   /** Files the triggering tool call touched (PostToolUse on Edit/Write/MultiEdit). */
   filePaths: string[];
+  /** SubagentStop: the finished subagent's type (e.g. "implementer"). */
+  agentType: string | null;
+  /** The parsed payload, for callers that need more fields. */
+  raw: Record<string, unknown>;
 }
 
 /**
@@ -16,7 +20,7 @@ export async function readHookPayload(
   stdin: Readable & { isTTY?: boolean },
   timeoutMs = 1_000,
 ): Promise<HookPayload> {
-  const empty: HookPayload = { sessionId: null, filePaths: [] };
+  const empty: HookPayload = { sessionId: null, filePaths: [], agentType: null, raw: {} };
   if (stdin.isTTY) return empty;
   const text = await new Promise<string>((resolve) => {
     const chunks: Buffer[] = [];
@@ -45,15 +49,24 @@ export async function readHookPayload(
   try {
     const data = JSON.parse(text) as {
       session_id?: unknown;
+      agent_type?: unknown;
       tool_input?: { file_path?: unknown; filePath?: unknown; edits?: unknown };
     };
+    if (!data || typeof data !== "object") return empty;
     const sessionId =
       typeof data.session_id === "string" && data.session_id ? data.session_id : null;
     const input = data.tool_input ?? {};
     const filePaths = [input.file_path, input.filePath].filter(
       (p): p is string => typeof p === "string" && p.length > 0,
     );
-    return { sessionId, filePaths: [...new Set(filePaths)] };
+    const agentType =
+      typeof data.agent_type === "string" && data.agent_type ? data.agent_type : null;
+    return {
+      sessionId,
+      filePaths: [...new Set(filePaths)],
+      agentType,
+      raw: data as Record<string, unknown>,
+    };
   } catch {
     return empty;
   }

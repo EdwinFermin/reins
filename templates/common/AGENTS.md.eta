@@ -27,7 +27,7 @@ Per-role model and effort are set in `reins.config.json` under `agents` (`inheri
 
 ## Verification is law
 
-`<%= it.verifyCmd %>` runs the project's gate (lint, tests, e2e, security) cross-platform and returns non-zero when a required check fails. It is wired into Claude Code hooks (`.claude/settings.json`): each edit lints the changed file, the implementer runs the related tests, and the session is blocked from ending on a red tree. A pass on an unchanged tree is reused from cache, so repeated runs are cheap. Run `reins doctor` to check the harness itself.
+`<%= it.verifyCmd %>` runs the project's gate (lint, tests, e2e, security) cross-platform and returns non-zero when a required check fails. It runs **per milestone, not per edit**, through Claude Code hooks (`.claude/settings.json`): the implementer can't hand off on a red tree (`SubagentStop`), and the session can't end on one (`Stop`). A pass on an unchanged tree is reused from cache, so the later runs are cheap. Run `reins doctor` to check the harness itself.
 
 ## Session close checklist
 

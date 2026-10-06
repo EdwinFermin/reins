@@ -136,19 +136,38 @@ export async function migrateConfig(
     verify.cache = true;
     added.push("verify.cache");
   }
-  // The per-edit hook used to run the whole test suite on every Edit/Write.
-  // Replace that old default only — a profile the user chose is left alone.
-  const perHook = isObj(verify.perHook) ? (verify.perHook as Json) : null;
-  const post = perHook?.PostToolUse;
-  if (
-    perHook &&
-    Array.isArray(post) &&
-    post.length === 2 &&
-    post[0] === "lint" &&
-    post[1] === "unit"
-  ) {
-    perHook.PostToolUse = ["lint"];
-    added.push("verify.perHook.PostToolUse=[lint] (was the old [lint, unit] default)");
+  // v0.12 — verify per milestone, not per edit. The per-edit hook's former
+  // defaults ([lint, unit] ≤ 0.10, [lint] in 0.11) become "run nothing"; a
+  // profile the user chose is left alone. (The hook entry itself is removed
+  // from settings.json by the settings merge.)
+  const perHook = ensureObject(verify, "perHook");
+  const post = JSON.stringify(perHook.PostToolUse ?? null);
+  if (post === '["lint","unit"]' || post === '["lint"]') {
+    perHook.PostToolUse = [];
+    added.push(`verify.perHook.PostToolUse=[] (was the old ${post} default)`);
+  }
+  if (!Array.isArray(verify.gateAgents)) {
+    verify.gateAgents = ["implementer"];
+    added.push("verify.gateAgents");
+  }
+  // v0.12 — typecheck joins the gate wherever a typecheck command is configured
+  // (it was configured but never run): in `required`, and in the milestone
+  // profiles (Stop / SubagentStop / CI) that already run unit tests. Per-edit
+  // and pre-commit profiles stay as they are.
+  if (commands.typecheck) {
+    const lists: [string, unknown][] = [
+      ["verify.required", verify.required],
+      ...["Stop", "SubagentStop", "CI"].map(
+        (hook) => [`verify.perHook.${hook}`, perHook[hook]] as [string, unknown],
+      ),
+    ];
+    for (const [name, list] of lists) {
+      if (!Array.isArray(list) || list.includes("typecheck")) continue;
+      if (name !== "verify.required" && !list.includes("unit")) continue;
+      const at = list.indexOf("lint");
+      list.splice(at >= 0 ? at + 1 : 0, 0, "typecheck");
+      added.push(`${name} += typecheck`);
+    }
   }
   if (!isObj(raw.router)) {
     raw.router = { provider: "auto" };

@@ -4,6 +4,33 @@ All notable changes to Reins are documented here. This project adheres to
 [Semantic Versioning](https://semver.org/). The harness template version tracks
 the package version, so `reins update` migrates installed harnesses to it.
 
+## 0.12.0
+
+### Verify per milestone, not per edit
+
+A change in progress passes through broken intermediate states — a signature updated before its
+callers — so checking after every edit cost time and steered the agent into patching half-done
+work. The gate now runs when there is something whole to check.
+
+- **No per-edit hook.** New installs get no `PostToolUse` hook (and no `file.edited` gate on
+  opencode). `reins update` removes the generated hook from `.claude/settings.json` (only in its
+  exact generated form — an edited one is kept) and sets `verify.perHook.PostToolUse` to `[]` when it
+  still holds a former default. A hook listed in `perHook` now runs exactly its list — an empty list
+  runs nothing, instead of falling back to `required`.
+- **Enforced gate when the implementer finishes.** A new `SubagentStop` hook runs the full gate for
+  the agents in `verify.gateAgents` (default `["implementer"]`, also matching `plugin:implementer`);
+  a red tree blocks the hand-off with exit 2 and the implementer keeps fixing. Reviewers, explorers,
+  and other subagents finish untouched. It shares the Stop policy — pre-existing dependency findings
+  don't block, and an identical block repeated with no file changes is released — with its own
+  repeat counter.
+- **Write first, verify at the end.** The implementer builds the whole change before running the gate
+  (a targeted test only to debug); a `chore` verifies after each checklist step, not each edit; the
+  leader never asks for per-edit checks.
+- **`typecheck` joins the gate.** `commands.typecheck` was detected and configured but never run.
+  It is now a check (`--only typecheck`), cached like lint and tests, and in the default `required`
+  set. `reins update` adds it to `required` and to the `Stop`/`SubagentStop`/`CI` profiles that run
+  unit tests, wherever a typecheck command is configured.
+
 ## 0.11.0
 
 ### Fast lanes: process that scales to the task, Jev-assisted triage, and a gate that runs once

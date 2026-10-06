@@ -10,14 +10,45 @@ export function mergeStringList(existing: string[] = [], incoming: string[] = []
 type AnyRecord = Record<string, any>;
 
 /**
+ * Hook commands earlier Reins versions installed and later retired. They are
+ * removed on merge — but only in their exact generated form, so a hook the
+ * user edited is left alone.
+ */
+export const RETIRED_HOOK_COMMANDS = new Set([
+  // ≤ 0.11: the per-edit gate. Verification now runs per milestone.
+  "npx reins verify --hook PostToolUse --changed",
+]);
+
+function dropRetiredHooks(hooks: AnyRecord): void {
+  for (const [event, entries] of Object.entries(hooks)) {
+    if (!Array.isArray(entries)) continue;
+    const kept = entries
+      .map((entry: AnyRecord) => {
+        if (!entry || !Array.isArray(entry.hooks)) return entry;
+        const inner = entry.hooks.filter(
+          (h: AnyRecord) => !(h && RETIRED_HOOK_COMMANDS.has(String(h.command ?? ""))),
+        );
+        return inner.length === entry.hooks.length ? entry : { ...entry, hooks: inner };
+      })
+      .filter(
+        (entry: AnyRecord) => !entry || !Array.isArray(entry.hooks) || entry.hooks.length > 0,
+      );
+    if (kept.length > 0) hooks[event] = kept;
+    else delete hooks[event];
+  }
+}
+
+/**
  * Deep-merge a Reins `.claude/settings.json` fragment into an existing one
  * without clobbering the user's content:
- *  - `hooks`: per event, append incoming entries that are not already present.
+ *  - `hooks`: drop retired Reins hooks, then per event append incoming entries
+ *    that are not already present.
  *  - `permissions.{allow,ask,deny}`: union of patterns.
  *  - any other top-level key: only added when missing.
  */
 export function deepMergeSettings(existing: AnyRecord, incoming: AnyRecord): AnyRecord {
   const result: AnyRecord = structuredClone(existing ?? {});
+  if (result.hooks && typeof result.hooks === "object") dropRetiredHooks(result.hooks);
 
   if (incoming?.hooks && typeof incoming.hooks === "object") {
     result.hooks = (result.hooks as AnyRecord) ?? {};

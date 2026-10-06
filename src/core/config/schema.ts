@@ -5,6 +5,7 @@ export const RUNTIMES = ["claude", "opencode"] as const;
 export const LANGUAGES = ["node", "python", "go", "rust", "ruby", "java", "other"] as const;
 export const CHECK_IDS = [
   "lint",
+  "typecheck",
   "unit",
   "integration",
   "e2e",
@@ -195,8 +196,13 @@ export const ReinsConfigSchema = z
       .object({
         required: z
           .array(z.enum(CHECK_IDS))
-          .default(["lint", "unit", "security", "design", "feature-list"]),
+          .default(["lint", "typecheck", "unit", "security", "design", "feature-list"]),
+        // A hook listed here runs exactly these checks — an empty list runs
+        // nothing. A hook not listed runs `required`.
         perHook: z.record(z.enum(HOOK_NAMES), z.array(z.enum(CHECK_IDS))).default({}),
+        // Subagents whose finish (SubagentStop) is gated: they can't hand off
+        // on a red tree. Matches the agent type, or `plugin:<type>`.
+        gateAgents: z.array(z.string().min(1)).default(["implementer"]),
         stop: StopPolicySchema,
         // Reuse a passing lint/test result when the working tree is unchanged
         // since it passed (never under --changed or the CI hook).

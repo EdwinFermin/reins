@@ -3,7 +3,13 @@ import { Command, Option } from "clipanion";
 import { loadConfig } from "../core/config/load";
 import { readHookPayload } from "../core/verify/hook-input";
 import { formatReport } from "../core/verify/report";
-import { computeExitCode, parseCheckIds, runVerify } from "../core/verify/runner";
+import { identifySubagent } from "../core/telemetry/record";
+import {
+  computeExitCode,
+  parseCheckIds,
+  runVerify,
+  shouldGateSubagent,
+} from "../core/verify/runner";
 import { SESSION_HOOKS, sessionTrackingEnabled } from "../core/verify/stop-guard";
 
 /**
@@ -74,6 +80,14 @@ export class VerifyCommand extends Command {
       if (!sessionId && sessionTrackingEnabled(config)) sessionId = payload.sessionId;
       if (this.hook === "PostToolUse" && payload.filePaths.length > 0)
         changedFiles = payload.filePaths;
+      // SubagentStop gates only the agents that write code (verify.gateAgents):
+      // the implementer can't hand off on a red tree; reviewers, explorers and
+      // other subagents finish untouched.
+      if (this.hook === "SubagentStop") {
+        const agentType =
+          payload.agentType ?? (await identifySubagent(payload.raw, cwd)).agentType ?? null;
+        if (!shouldGateSubagent(config, agentType)) return 0;
+      }
     }
 
     const report = await runVerify({
@@ -87,6 +101,9 @@ export class VerifyCommand extends Command {
       sessionId,
     });
     const code = computeExitCode(report, this.hook);
+    // An empty profile (e.g. `perHook.PostToolUse: []`) is a deliberate no-op:
+    // stay silent so a still-wired hook adds no noise to the session.
+    if (report.profile.length === 0 && !this.json) return 0;
 
     if (this.json) {
       this.context.stdout.write(

@@ -5,7 +5,7 @@ import { sha256 } from "../util/hash";
 import { workspaceFingerprint } from "./stop-guard";
 
 /**
- * Pass-result cache for the command checks (lint/unit/integration/e2e).
+ * Pass-result cache for the command checks (lint/typecheck/unit/integration/e2e).
  *
  * One feature used to run the full suite five or more times on the same tree
  * (leader before, implementer, reviewer, leader after, the Stop hook). A pass
@@ -19,7 +19,7 @@ import { workspaceFingerprint } from "./stop-guard";
 export const RESULT_CACHE_REL = path.join(".reins", "cache", "verify-results.json");
 
 /** Checks whose result is a pure function of the tree + command. */
-const CACHEABLE = new Set<CheckId>(["lint", "unit", "integration", "e2e"]);
+const CACHEABLE = new Set<CheckId>(["lint", "typecheck", "unit", "integration", "e2e"]);
 
 /**
  * Harness state the agents write while working (reports, specs, the queue).

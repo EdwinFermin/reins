@@ -16,27 +16,30 @@
 
 ## What runs when
 
-The gate is tuned so the expensive parts run once, not on every keystroke:
+The gate runs **per milestone, not per edit**. A change in progress passes through broken intermediate states (a signature updated before its callers); checking those costs time and steers the agent into patching half-done work. So:
 
 | Moment | What runs |
 | --- | --- |
-| After each edit (<% if (it.runtime === "opencode") { %>`file.edited`<% } else { %>`PostToolUse`<% } %>) | lint on **just the edited file**<% if (it.commands.lintChanged) { %> (`<%= it.commands.lintChanged %>`)<% } %> — `verify.perHook.PostToolUse` |
-| Implementer self-check (`<%= it.verifyCmd %> --changed`) | lint + the tests **related** to the changed files<% if (it.commands.testChanged) { %> (`<%= it.commands.testChanged %>`)<% } %>, design and secret scans on the changed files |
-| Handoff, review, session end, CI | the full gate |
+| While editing | nothing — the implementer may run one targeted test or typecheck to debug |
+| A chore's checklist step done | `<%= it.verifyCmd %> --changed`: lint<% if (it.commands.lintChanged) { %> (`<%= it.commands.lintChanged %>`)<% } %> and the tests **related** to the changed files<% if (it.commands.testChanged) { %> (`<%= it.commands.testChanged %>`)<% } %>, plus typecheck |
+| Implementer finishes | the full gate — <% if (it.runtime === "opencode") { %>by instruction (opencode has no subagent hook)<% } else { %>**enforced** by the `SubagentStop` hook for the agents in `verify.gateAgents` (default `implementer`): a red tree sends it back to fix; reviewers and explorers are never gated<% } %> |
+| Review, session end, CI | the full gate again — answered from cache when the tree hasn't changed |
 
+- **Typecheck** (`commands.typecheck`) is part of the gate: it is the cheapest check that catches what a half-finished refactor leaves behind.
 - **Scoped commands.** `commands.lintChanged` / `commands.testChanged` in `reins.config.json` take a `{files}` placeholder (appended when absent). When one is `null`, `--changed` falls back to the full command. With nothing relevant changed, the check is skipped.
-- **Result cache.** A passing lint/test run is recorded against a fingerprint of the working tree (`.reins/cache/verify-results.json`). The next run on an identical tree — the reviewer after the implementer, the `Stop` hook after the leader — reuses it instead of re-running the suite. Edits to `progress/`, `specs/`, and `feature_list.json` don't invalidate test results. Failures are never cached, CI never uses the cache, and `--no-cache` (or `"verify": { "cache": false }`) forces a real run.
+- **Result cache.** A passing lint/typecheck/test run is recorded against a fingerprint of the working tree (`.reins/cache/verify-results.json`). The next run on an identical tree reuses it instead of re-running. Edits to `progress/`, `specs/`, and `feature_list.json` don't invalidate test results. Failures are never cached, CI never uses the cache, and `--no-cache` (or `"verify": { "cache": false }`) forces a real run.
+- **Per-hook profiles.** `verify.perHook.<Hook>` lists exactly the checks a hook runs; an empty list runs nothing. Want a per-edit check back? Add a `PostToolUse` hook running `<%= it.verifyCmd %> --hook PostToolUse --changed` and set `perHook.PostToolUse` (e.g. `["lint"]`).
 
 ## Rules
 
 - The required checks (see `reins.config.json` → `verify.required`) must pass before a feature is `done`.
-<% if (it.runtime === "opencode") { %>- The `reins-verify` plugin runs `<%= it.verifyCmd %>` on `file.edited` and `session.idle` and reports a red tree. (opencode cannot hard-block a finished session — treat a failing gate as "not done".)
+<% if (it.runtime === "opencode") { %>- The `reins-verify` plugin runs `<%= it.verifyCmd %>` on `session.idle` and reports a red tree. (opencode cannot hard-block a finished session — treat a failing gate as "not done".)
 <% } else { %>- The `Stop` hook runs `<%= it.verifyCmd %>` and blocks the session from ending on a red tree.
 <% } %>- Dependency advisories with no available fix are allowlisted per advisory, with a reason and an expiry — see `docs/security.md`.
 
 ## Stop hook: pre-existing findings and loops
 
-The Stop gate blocks on what the session can fix. Two safeguards (`reins.config.json` → `verify.stop`) keep it from trapping a session in a loop that needs a human decision:
+The Stop gate — and the implementer's `SubagentStop` gate, which follows the same policy with its own counter — blocks on what the session can fix. Two safeguards (`reins.config.json` → `verify.stop`) keep it from trapping a session in a loop that needs a human decision:
 
 - **`baselinePreexisting`** (default `true`) — when the session starts, Reins snapshots the lockfiles (`.reins/cache/`); the first audit against that unchanged lockfile becomes the session's baseline. On Stop, if the only failure is dependency advisories that are all in the baseline **and** the lockfile is unchanged, the check reports `warn` instead of blocking, and names the advisories so a human can fix or allowlist them. It still blocks when the session introduced a new advisory, or changed the lockfile and findings remain. Secret leaks and expired allowlist entries always block.
 - **`maxRepeatBlocks`** (default `3`, `0` = off) — if Stop blocks this many times in a row with identical output and no file changes in between, the next attempt stops blocking and prints a "repeated identical Stop block, giving up" message asking you to run `<%= it.verifyCmd %>` yourself. The tree is still red — treat the work as not done until a human resolves it.

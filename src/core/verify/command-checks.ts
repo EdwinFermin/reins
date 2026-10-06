@@ -120,6 +120,9 @@ export const lintCheck = (ctx: CheckContext): Promise<CheckResult> =>
     ctx,
   );
 
+export const typecheckCheck = (ctx: CheckContext): Promise<CheckResult> =>
+  runCommandCheck({ id: "typecheck", full: ctx.config.commands.typecheck }, ctx);
+
 export const unitCheck = (ctx: CheckContext): Promise<CheckResult> =>
   runCommandCheck(
     { id: "unit", full: ctx.config.commands.test, scoped: ctx.config.commands.testChanged },

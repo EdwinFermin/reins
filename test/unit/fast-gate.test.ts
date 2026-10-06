@@ -166,7 +166,11 @@ describe("hook payload", () => {
         tool_input: { file_path: "/repo/src/a.ts", content: "…" },
       }),
     );
-    expect(await pending).toEqual({ sessionId: "s1", filePaths: ["/repo/src/a.ts"] });
+    expect(await pending).toMatchObject({
+      sessionId: "s1",
+      filePaths: ["/repo/src/a.ts"],
+      agentType: null,
+    });
   });
 });
 

@@ -11,20 +11,22 @@ It recommends a **lane**, the complexity, the implementer model and effort, and 
 | Lane | Typical task | Process | Human gate |
 | --- | --- | --- | --- |
 | `quick` | typo, copy, style tweak, rename, one-line fix | no queue entry, no spec, no reviewer: implementer → gate | none |
-| `chore` | framework/SDK upgrade (Expo, React Native, Next…), dependency bumps, codemods, deprecations — **one feature per upgrade** | queued; implementer works an upstream-guide checklist in an apply → verify → fix loop on a build budget; one regression review | none |
+| `chore` | framework/SDK upgrade (Expo, React Native, Next…), dependency bumps, codemods, deprecations — **one feature per upgrade** | queued; implementer works an upstream-guide checklist step by step, verifying after each step, on a build budget; one regression review | none |
 | `standard` | ordinary feature or bug fix | queued; <% if (it.isSdd) { %>one-page `specs/<slug>/plan.md` → **one** approval → <% } %>implementer → reviewer | <%= it.isSdd ? "one (the plan)" : "none" %> |
 | `full` | auth, payments, data model, architecture, large or ambiguous work | queued; <% if (it.isSdd) { %>discovery → questions → spec (`spec_author`) → approval → <% } else { %>explorers → <% } %>implementer → every applicable reviewer | <%= it.isSdd ? "two (intent, then spec)" : "none" %> |
 
 ### Running each lane
 
-- **quick** — No `feature_list.json` entry. <%= Launch %> `implementer` with `Lane: quick` and the task. It edits, self-verifies with `<%= it.verifyCmd %> --changed`, and logs one line in `progress/history.md`. You run `<%= it.verifyCmd %>` once and report. No reviewer.
-- **chore** — `reins add-feature <slug> --title "<title>" --lane chore`, then set it `in_progress` directly: the human's request is the approval<% if (it.isSdd) { %> — no discovery, plan, or spec<% } %>. <%= Launch %> `implementer` with `Lane: chore`: it writes the upgrade checklist from the official guide/changelog, then loops apply → `<%= it.verifyCmd %> --changed` → fix. Then one `reviewer` pass with `Lane: chore` (regressions only).
+- **quick** — No `feature_list.json` entry. <%= Launch %> `implementer` with `Lane: quick` and the task. It makes the change, verifies once at the end, and logs one line in `progress/history.md`. You run `<%= it.verifyCmd %>` once and report. No reviewer.
+- **chore** — `reins add-feature <slug> --title "<title>" --lane chore`, then set it `in_progress` directly: the human's request is the approval<% if (it.isSdd) { %> — no discovery, plan, or spec<% } %>. <%= Launch %> `implementer` with `Lane: chore`: it writes the upgrade checklist from the official guide/changelog, then works it step by step, verifying after each step (not each edit). Then one `reviewer` pass with `Lane: chore` (regressions only).
 <% if (it.isSdd) { %>- **standard** — `reins add-feature <slug> --title "<title>" --lane standard`, set it `analyzing`, read the relevant code (cheap explorers only if the area is unfamiliar), copy `specs/_template/plan.md` to `specs/<slug>/plan.md` and fill it: findings, approach, acceptance criteria, tasks, and any open questions. Set it `spec_ready` and present the plan **and** its questions in **one** message. The human answers and approves in one reply: record the answers in the plan's **Resolution**, set `approved`, then `in_progress` → `implementer` → `reviewer` (+ any reviewer the route or the diff calls for), all with `Lane: standard`.
 - **full** — `reins add-feature <slug> --title "<title>" --lane full`, then the full SDD pipeline: discovery → open questions → `spec_author` → spec approval → implementer → every applicable reviewer, all with `Lane: full`.
 <% } else { %>- **standard** — `reins add-feature <slug> --title "<title>" --lane standard`, set it `in_progress`, <%= launch %> `implementer` (it writes a 3–5 bullet plan in `progress/current.md`), then `reviewer` (+ any reviewer the route or the diff calls for), all with `Lane: standard`.
 - **full** — `reins add-feature <slug> --title "<title>" --lane full`, <%= launch %> 1–2 cheap explorers first, then `implementer` → `reviewer` + every applicable specialist reviewer, all with `Lane: full`.
 <% } %>
 ### Rules of the road
+
+- **Verify per milestone, not per edit.** Subagents write the whole change, then run the gate: at the end of the implementer's work<% if (!oc) { %> (enforced by the `SubagentStop` gate)<% } %>, after each step of a chore, and at session end. Never ask a subagent to run checks after every edit.
 
 <% if (oc) { %>- The route's model hints are informational on opencode (agents use the models configured in `.opencode/agents/`); lane, effort, and reviewers still apply.
 <% } else { %>- Launch on the route's models (the Agent tool's `model` parameter): `implementer` on `models.implementer`, reviewers on `models.reviewer`, explorers on `haiku`. The route's `effort` is how hard to push: low = act on the obvious reading, high = explore alternatives first.

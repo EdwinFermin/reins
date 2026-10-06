@@ -33,7 +33,15 @@ export interface SessionState {
   /** Blocking advisories seen by the first audit run against the starting lockfile. */
   baseline: { lockfileHash: string | null; advisories: string[]; recordedAt: string } | null;
   /** Consecutive identical Stop blocks. */
-  stopBlocks: { fingerprint: string; workspace: string | null; count: number } | null;
+  stopBlocks: BlockCounter | null;
+  /** Consecutive identical SubagentStop (implementer gate) blocks. */
+  subagentBlocks?: BlockCounter | null;
+}
+
+export interface BlockCounter {
+  fingerprint: string;
+  workspace: string | null;
+  count: number;
 }
 
 export function sessionTrackingEnabled(config: ReinsConfig): boolean {
@@ -225,13 +233,14 @@ export function registerStopBlock(
   fingerprint: string,
   workspace: string | null,
   maxRepeatBlocks: number,
+  slot: "stopBlocks" | "subagentBlocks" = "stopBlocks",
 ): { gaveUp: boolean; count: number } {
-  const prev = state.stopBlocks;
+  const prev = state[slot] ?? null;
   const same = prev != null && prev.fingerprint === fingerprint && prev.workspace === workspace;
   if (same && maxRepeatBlocks > 0 && prev.count >= maxRepeatBlocks) {
     return { gaveUp: true, count: prev.count };
   }
   const count = same ? prev.count + 1 : 1;
-  state.stopBlocks = { fingerprint, workspace, count };
+  state[slot] = { fingerprint, workspace, count };
   return { gaveUp: false, count };
 }

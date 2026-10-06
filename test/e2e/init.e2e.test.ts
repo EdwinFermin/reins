@@ -98,6 +98,9 @@ describe("reins init — sdd on a node project", () => {
     expect(await exists(path.join(cwd, "specs/_template/plan.md"))).toBe(true);
     expect(implementer).toContain("## Scale to the lane");
     expect(implementer).toContain("**Verification budget**");
+    expect(implementer).toContain("Write first, verify at the end");
+    expect(implementer).toContain("SubagentStop");
+    expect(leader).toContain("Verify per milestone, not per edit");
     expect(implementer).toContain("Human checklist");
     expect(brainstorm).toContain("is **one** `chore` feature");
     expect(reviewer).toContain("## Scale to the lane");
@@ -119,7 +122,10 @@ describe("reins init — sdd on a node project", () => {
     // settings.json valid + hooks + stack allowlist
     const settings = JSON.parse(await readFile(path.join(cwd, ".claude/settings.json"), "utf8"));
     expect(settings.hooks.Stop[0].hooks[0].command).toContain("reins verify --hook Stop");
-    expect(settings.hooks.PostToolUse[0].matcher).toBe("Edit|Write|MultiEdit");
+    expect(settings.hooks.PostToolUse).toBeUndefined(); // verify per milestone, not per edit
+    expect(JSON.stringify(settings.hooks.SubagentStop)).toContain(
+      "npx reins verify --hook SubagentStop",
+    );
     expect(settings.permissions.allow).toContain("Bash(npx reins:*)");
     expect(settings.permissions.allow).toContain("Bash(npm test:*)");
 
@@ -130,7 +136,9 @@ describe("reins init — sdd on a node project", () => {
     expect(cfg.preset).toBe("sdd");
     expect(cfg.commands.test).toBe("npm test");
     expect(cfg.verify.required).toContain("traceability");
-    expect(cfg.verify.perHook.PostToolUse).toEqual(["lint"]); // no full test run per edit
+    expect(cfg.verify.perHook.PostToolUse).toEqual([]); // nothing per edit
+    expect(cfg.verify.required).toContain("typecheck");
+    expect(cfg.verify.gateAgents).toEqual(["implementer"]);
     expect(cfg.verify.cache).toBe(true);
     expect(cfg.router.provider).toBe("auto");
     expect(cfg.verify.required).toContain("design");
