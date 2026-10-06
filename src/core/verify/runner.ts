@@ -2,6 +2,7 @@ import { CHECK_IDS, type CheckId, type ReinsConfig } from "../config/schema";
 import { e2eCheck, integrationCheck, lintCheck, unitCheck } from "./command-checks";
 import { designCheck } from "./design";
 import { securityCheck } from "./security";
+import { ResultCache } from "./result-cache";
 import { featureListCheck, traceabilityCheck } from "./state-checks";
 import {
   applyBaseline,
@@ -33,6 +34,10 @@ export interface RunVerifyOptions {
   only?: CheckId[];
   hook?: string;
   changed?: boolean;
+  /** Explicit changed files (e.g. from the PostToolUse payload); implies nothing without `changed`. */
+  changedFiles?: string[];
+  /** Skip the pass-result cache (`--no-cache`). */
+  noCache?: boolean;
   /** The agent session this hook fired in (Claude Code passes it on stdin). */
   sessionId?: string | null;
   /** Clock override for tests. */
@@ -63,11 +68,17 @@ export function resolveProfile(opts: RunVerifyOptions): CheckId[] {
 
 export async function runVerify(opts: RunVerifyOptions): Promise<VerifyReport> {
   const profile = resolveProfile(opts);
+  // CI always runs for real: a fresh checkout has no cache, and a cached pass
+  // must never stand in for the gate of record.
+  const useCache = opts.config.verify.cache && !opts.noCache && opts.hook !== "CI";
   const ctx: CheckContext = {
     cwd: opts.cwd,
     config: opts.config,
     changed: Boolean(opts.changed),
     now: opts.now,
+    hook: opts.hook,
+    changedFiles: opts.changedFiles,
+    cache: useCache ? new ResultCache(opts.cwd, opts.config) : undefined,
   };
 
   const tracked =

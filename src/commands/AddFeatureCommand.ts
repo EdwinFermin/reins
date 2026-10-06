@@ -1,5 +1,6 @@
 import path from "node:path";
 import { Command, Option } from "clipanion";
+import type { Lane } from "../core/config/schema";
 import { addFeature } from "../core/features/add-feature";
 
 /** `reins add-feature <slug>` — register a feature in feature_list.json. */
@@ -12,6 +13,7 @@ export class AddFeatureCommand extends Command {
     examples: [
       ["Queue a feature", "reins add-feature auth-login --title 'Login with email'"],
       ["Queue and scaffold its SDD spec", "reins add-feature auth-login --with-spec"],
+      ["Queue an upgrade as a chore (no spec)", "reins add-feature expo-sdk-55 --lane chore"],
     ],
   });
 
@@ -22,6 +24,9 @@ export class AddFeatureCommand extends Command {
     description: "Scaffold specs/<slug>/ from the SDD template",
   });
   dependsOn = Option.String("--depends-on", { description: "Comma-separated feature slugs" });
+  lane = Option.String("--lane", {
+    description: "quick | chore | standard | full (default: full) — see `reins route`",
+  });
   json = Option.Boolean("--json", false, { description: "Machine-readable output" });
 
   async execute(): Promise<number> {
@@ -39,13 +44,14 @@ export class AddFeatureCommand extends Command {
       title: this.title,
       withSpec: this.withSpec,
       dependsOn,
+      lane: this.lane as Lane | undefined,
     });
 
     if (this.json) {
       this.context.stdout.write(JSON.stringify(result, null, 2) + "\n");
     } else if (result.added) {
       this.context.stdout.write(
-        `Added feature "${result.slug}" (pending).` +
+        `Added feature "${result.slug}" (pending${this.lane ? `, ${this.lane} lane` : ""}).` +
           (result.specCreated ? ` Spec scaffolded at specs/${result.slug}/.` : "") +
           "\n",
       );

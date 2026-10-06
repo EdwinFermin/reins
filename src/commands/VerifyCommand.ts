@@ -1,7 +1,7 @@
 import path from "node:path";
 import { Command, Option } from "clipanion";
 import { loadConfig } from "../core/config/load";
-import { readHookSessionId } from "../core/verify/hook-input";
+import { readHookPayload } from "../core/verify/hook-input";
 import { formatReport } from "../core/verify/report";
 import { computeExitCode, parseCheckIds, runVerify } from "../core/verify/runner";
 import { SESSION_HOOKS, sessionTrackingEnabled } from "../core/verify/stop-guard";
@@ -33,6 +33,9 @@ export class VerifyCommand extends Command {
   });
   only = Option.String("--only", { description: "Comma-separated subset of checks to run" });
   changed = Option.Boolean("--changed", false, { description: "Limit checks to changed files" });
+  cache = Option.Boolean("--cache", true, {
+    description: "Reuse a passing lint/test result on an unchanged tree (--no-cache to force)",
+  });
   json = Option.Boolean("--json", false, { description: "Machine-readable output" });
   quiet = Option.Boolean("--quiet,-q", false, { description: "Only print the summary" });
 
@@ -61,9 +64,16 @@ export class VerifyCommand extends Command {
       only = ids;
     }
 
+    // Hooks fired inside an agent session carry a JSON payload on stdin: the
+    // session id (Stop policy) and, for PostToolUse, the file just edited — the
+    // most precise "changed" set there is.
     let sessionId = this.session ?? null;
-    if (!sessionId && this.hook && SESSION_HOOKS.has(this.hook) && sessionTrackingEnabled(config)) {
-      sessionId = await readHookSessionId(this.context.stdin);
+    let changedFiles: string[] | undefined;
+    if (this.hook && SESSION_HOOKS.has(this.hook)) {
+      const payload = await readHookPayload(this.context.stdin);
+      if (!sessionId && sessionTrackingEnabled(config)) sessionId = payload.sessionId;
+      if (this.hook === "PostToolUse" && payload.filePaths.length > 0)
+        changedFiles = payload.filePaths;
     }
 
     const report = await runVerify({
@@ -72,6 +82,8 @@ export class VerifyCommand extends Command {
       only,
       hook: this.hook,
       changed: this.changed,
+      changedFiles,
+      noCache: !this.cache,
       sessionId,
     });
     const code = computeExitCode(report, this.hook);

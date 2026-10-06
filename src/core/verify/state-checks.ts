@@ -1,6 +1,7 @@
 import { readdir } from "node:fs/promises";
 import path from "node:path";
 import { findDepIssues, normalizeFeatures, prematureFeatures } from "../features/deps";
+import { LANES } from "../config/schema";
 import { readJsonIfExists, readTextIfExists } from "../fs/read";
 import { fail, pass, skip, type CheckContext, type CheckResult } from "./types";
 
@@ -15,10 +16,14 @@ const VALID_STATES = new Set([
   "blocked",
 ]);
 
-/** States that occupy the single active work slot — one feature at a time. */
-const ACTIVE_STATES = new Set(["analyzing", "in_progress"]);
+/**
+ * The single implementation slot: one feature `in_progress` at a time.
+ * Analysis (`analyzing`) is not limited — `/brainstorm` runs discovery for
+ * several features in parallel and batches their questions.
+ */
+const ACTIVE_STATES = new Set(["in_progress"]);
 
-/** SDD states that must already have a recorded, human-validated discovery. */
+/** SDD `full` lane: states that must already have a recorded, human-validated discovery. */
 const REQUIRES_DISCOVERY = new Set([
   "needs_clarification",
   "spec_ready",
@@ -26,19 +31,33 @@ const REQUIRES_DISCOVERY = new Set([
   "in_progress",
 ]);
 
-/** SDD states that must already have a complete, human-approved spec on disk. */
+/** SDD `full` lane: states that must already have a complete, human-approved spec on disk. */
 const REQUIRES_SPEC = new Set(["approved"]);
 
 const SPEC_FILES = ["requirements.md", "design.md", "tasks.md"];
 
+/** SDD `standard` lane: states that must have the one-page `plan.md`. */
+const REQUIRES_PLAN = new Set(["needs_clarification", "spec_ready", "approved", "in_progress"]);
+
+const VALID_LANES = new Set<string>(LANES);
+
 interface FeatureListShape {
-  features?: { slug?: string; state?: string }[];
+  features?: { slug?: string; state?: string; lane?: string }[];
 }
 
 /**
- * Validate feature_list.json: present, parseable, valid states, ≤1 active
- * (analyzing/in_progress), and — for SDD — a discovery.md before the spec
- * pipeline plus a complete spec (requirements/design/tasks) behind `approved`.
+ * A feature's lane. Features written before lanes existed have none and keep
+ * the behavior they were created under: the full SDD pipeline.
+ */
+export function laneOf(f: { lane?: unknown }): string {
+  return typeof f.lane === "string" ? f.lane : "full";
+}
+
+/**
+ * Validate feature_list.json: present, parseable, valid states and lanes, ≤1
+ * `in_progress`, and — for SDD — the artifacts each lane requires:
+ * `full` = discovery.md before the spec pipeline plus requirements/design/tasks
+ * behind `approved`; `standard` = plan.md; `quick`/`chore` = none.
  */
 export async function featureListCheck(ctx: CheckContext): Promise<CheckResult> {
   const start = Date.now();
@@ -55,10 +74,20 @@ export async function featureListCheck(ctx: CheckContext): Promise<CheckResult> 
     (f) => typeof f.state === "string" && !VALID_STATES.has(f.state),
   );
 
+  const badLanes = features.filter((f) => f.lane !== undefined && !VALID_LANES.has(String(f.lane)));
+  if (badLanes.length > 0) {
+    return fail(
+      "feature-list",
+      `invalid lane(s): ${badLanes.map((f) => `${f.slug ?? "?"}=${String(f.lane)}`).join(", ")} ` +
+        `(valid: ${LANES.join(", ")})`,
+      Date.now() - start,
+    );
+  }
+
   if (active.length > 1) {
     return fail(
       "feature-list",
-      `${active.length} features active — only one may be analyzing/in_progress`,
+      `${active.length} features in_progress — only one may be implemented at a time`,
       Date.now() - start,
       active.map((f) => `- ${f.slug ?? "?"} (${f.state})`).join("\n"),
     );
@@ -77,7 +106,7 @@ export async function featureListCheck(ctx: CheckContext): Promise<CheckResult> 
     const missing: string[] = [];
     for (const f of features) {
       if (typeof f.state !== "string" || !REQUIRES_DISCOVERY.has(f.state)) continue;
-      if (typeof f.slug !== "string") continue;
+      if (typeof f.slug !== "string" || laneOf(f) !== "full") continue;
       const text = await readTextIfExists(path.join(ctx.cwd, "specs", f.slug, "discovery.md"));
       if (!text || text.trim().length === 0) missing.push(`${f.slug} (${f.state})`);
     }
@@ -95,7 +124,7 @@ export async function featureListCheck(ctx: CheckContext): Promise<CheckResult> 
     const incompleteSpecs: string[] = [];
     for (const f of features) {
       if (typeof f.state !== "string" || !REQUIRES_SPEC.has(f.state)) continue;
-      if (typeof f.slug !== "string") continue;
+      if (typeof f.slug !== "string" || laneOf(f) !== "full") continue;
       for (const file of SPEC_FILES) {
         const text = await readTextIfExists(path.join(ctx.cwd, "specs", f.slug, file));
         if (!text || text.trim().length === 0) incompleteSpecs.push(`${f.slug} (missing ${file})`);
@@ -107,6 +136,23 @@ export async function featureListCheck(ctx: CheckContext): Promise<CheckResult> 
         `${incompleteSpecs.length} approved feature(s) without a complete spec (requirements/design/tasks)`,
         Date.now() - start,
         incompleteSpecs.map((s) => `- ${s}`).join("\n"),
+      );
+    }
+
+    // `standard` lane: discovery + spec collapse into one plan.md, one gate.
+    const missingPlans: string[] = [];
+    for (const f of features) {
+      if (typeof f.state !== "string" || !REQUIRES_PLAN.has(f.state)) continue;
+      if (typeof f.slug !== "string" || laneOf(f) !== "standard") continue;
+      const text = await readTextIfExists(path.join(ctx.cwd, "specs", f.slug, "plan.md"));
+      if (!text || text.trim().length === 0) missingPlans.push(`${f.slug} (${f.state})`);
+    }
+    if (missingPlans.length > 0) {
+      return fail(
+        "feature-list",
+        `${missingPlans.length} standard-lane feature(s) past planning without specs/<slug>/plan.md`,
+        Date.now() - start,
+        missingPlans.map((s) => `- ${s}`).join("\n"),
       );
     }
   }
@@ -149,10 +195,10 @@ export async function featureListCheck(ctx: CheckContext): Promise<CheckResult> 
     );
   }
 
-  const inProgress = features.filter((f) => f.state === "in_progress").length;
+  const analyzing = features.filter((f) => f.state === "analyzing").length;
   return pass(
     "feature-list",
-    `${features.length} feature(s), ${active.length} active, ${inProgress} in progress`,
+    `${features.length} feature(s), ${active.length} in progress, ${analyzing} analyzing`,
     Date.now() - start,
   );
 }

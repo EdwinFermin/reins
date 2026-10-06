@@ -88,6 +88,24 @@ describe("reins init — sdd on a node project", () => {
     expect(brainstorm).toContain("in English");
 
     // autopilot is a COMMON command: the batch form of next-feature.
+    // Fast lanes: triage first, a /task entry point, and the standard-lane plan.
+    expect(leader).toContain('reins route "');
+    expect(leader).toContain("## Triage first");
+    expect(leader).not.toContain("<%");
+    const task = await readFile(path.join(cwd, ".claude/commands/task.md"), "utf8");
+    expect(task).toContain("$ARGUMENTS");
+    expect(task).toContain("| `chore` |");
+    expect(await exists(path.join(cwd, "specs/_template/plan.md"))).toBe(true);
+    expect(implementer).toContain("## Scale to the lane");
+    expect(implementer).toContain("**Verification budget**");
+    expect(implementer).toContain("Human checklist");
+    expect(brainstorm).toContain("is **one** `chore` feature");
+    expect(reviewer).toContain("## Scale to the lane");
+    const agentsMd = await readFile(path.join(cwd, "AGENTS.md"), "utf8");
+    expect(agentsMd).toContain("Every task starts with triage");
+    expect(brainstorm).toContain("--lane <lane>");
+    expect(brainstorm).toContain("single message");
+
     const autopilot = await readFile(path.join(cwd, ".claude/commands/autopilot.md"), "utf8");
     expect(autopilot).toContain("allowed-tools: Read, Bash, Agent");
     expect(autopilot).toContain("ready queue");
@@ -112,6 +130,9 @@ describe("reins init — sdd on a node project", () => {
     expect(cfg.preset).toBe("sdd");
     expect(cfg.commands.test).toBe("npm test");
     expect(cfg.verify.required).toContain("traceability");
+    expect(cfg.verify.perHook.PostToolUse).toEqual(["lint"]); // no full test run per edit
+    expect(cfg.verify.cache).toBe(true);
+    expect(cfg.router.provider).toBe("auto");
     expect(cfg.verify.required).toContain("design");
 
     // CLAUDE.md imports AGENTS.md and is wrapped in a managed block
@@ -230,6 +251,11 @@ describe("reins init — opencode runtime", () => {
       installGitHook: false,
     });
     expect(await exists(path.join(cwd, "docs/four-rs.md"))).toBe(true);
+    const ocLeader = await readFile(path.join(cwd, ".opencode/agents/leader.md"), "utf8");
+    expect(ocLeader).toContain("## Triage first");
+    expect(ocLeader).toContain("informational on opencode");
+    expect(ocLeader).not.toContain("<%");
+    expect(await exists(path.join(cwd, ".opencode/commands/task.md"))).toBe(true);
     const reviewer = await readFile(path.join(cwd, ".opencode/agents/reviewer.md"), "utf8");
     expect(reviewer).toContain("docs/four-rs.md");
     expect(reviewer).toContain("## Judgment (Four R's)");

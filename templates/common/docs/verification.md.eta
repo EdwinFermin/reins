@@ -14,6 +14,19 @@
 <% if (it.isSdd) { %>8. **Traceability** — every requirement maps to at least one test.
 <% } %>
 
+## What runs when
+
+The gate is tuned so the expensive parts run once, not on every keystroke:
+
+| Moment | What runs |
+| --- | --- |
+| After each edit (<% if (it.runtime === "opencode") { %>`file.edited`<% } else { %>`PostToolUse`<% } %>) | lint on **just the edited file**<% if (it.commands.lintChanged) { %> (`<%= it.commands.lintChanged %>`)<% } %> — `verify.perHook.PostToolUse` |
+| Implementer self-check (`<%= it.verifyCmd %> --changed`) | lint + the tests **related** to the changed files<% if (it.commands.testChanged) { %> (`<%= it.commands.testChanged %>`)<% } %>, design and secret scans on the changed files |
+| Handoff, review, session end, CI | the full gate |
+
+- **Scoped commands.** `commands.lintChanged` / `commands.testChanged` in `reins.config.json` take a `{files}` placeholder (appended when absent). When one is `null`, `--changed` falls back to the full command. With nothing relevant changed, the check is skipped.
+- **Result cache.** A passing lint/test run is recorded against a fingerprint of the working tree (`.reins/cache/verify-results.json`). The next run on an identical tree — the reviewer after the implementer, the `Stop` hook after the leader — reuses it instead of re-running the suite. Edits to `progress/`, `specs/`, and `feature_list.json` don't invalidate test results. Failures are never cached, CI never uses the cache, and `--no-cache` (or `"verify": { "cache": false }`) forces a real run.
+
 ## Rules
 
 - The required checks (see `reins.config.json` → `verify.required`) must pass before a feature is `done`.

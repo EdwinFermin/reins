@@ -181,11 +181,14 @@ const IGNORED_PREFIXES = [".reins/cache/", ".reins-backup/", ".git/"];
 /**
  * A cheap fingerprint of the working tree (HEAD + path/size/mtime of every
  * tracked and untracked file). Any edit between two Stop attempts changes it.
+ * `ignore` adds path prefixes to leave out (e.g. harness state for test caching).
  */
 export async function workspaceFingerprint(
   cwd: string,
   config: ReinsConfig,
+  ignore: readonly string[] = [],
 ): Promise<string | null> {
+  const ignored = [...IGNORED_PREFIXES, ...ignore];
   const head = await runShell("git rev-parse HEAD", { cwd, timeoutMs: 10_000 });
   const listed = await runShell("git ls-files -co --exclude-standard", { cwd, timeoutMs: 30_000 });
   let files: string[];
@@ -195,7 +198,7 @@ export async function workspaceFingerprint(
     files = await filesToScan({ cwd, config, changed: false });
   }
   files = [...new Set(files.map((f) => f.split(path.sep).join("/")))]
-    .filter((f) => !IGNORED_PREFIXES.some((p) => f.startsWith(p)))
+    .filter((f) => !ignored.some((p) => f.startsWith(p)))
     .sort()
     .slice(0, 50_000);
   if (files.length === 0) return null;

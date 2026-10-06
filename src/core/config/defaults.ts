@@ -44,11 +44,15 @@ export function buildDefaultConfig(opts: {
       lint: cmdValue(profile.commands.lint),
       e2e: cmdValue(profile.commands.e2e),
       typecheck: cmdValue(profile.commands.typecheck),
+      lintChanged: cmdValue(profile.commands.lintChanged),
+      testChanged: cmdValue(profile.commands.testChanged),
     },
     verify: {
       required,
       perHook: {
-        PostToolUse: ["lint", "unit"],
+        // Per-edit: lint only the changed files. Tests run when the implementer
+        // self-verifies (`verify --changed` → related tests) and at Stop/CI.
+        PostToolUse: ["lint"],
         PreCommit: ["lint", "security", "design"],
         Stop: required,
         CI: required,

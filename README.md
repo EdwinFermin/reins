@@ -33,6 +33,11 @@ guard rails. Reins makes the repository itself the control surface:
 - **State on disk, not chat** — `progress/` (append-only history + subagent
   reports) and `feature_list.json` (one feature in progress at a time) survive
   restarts and context limits.
+- **Process that scales to the task** — every task is triaged into a **lane**
+  (`quick`, `chore`, `standard`, `full`) by `reins route`, optionally with
+  [Jev](#jev-assisted-triage) as the classifier. A typo goes straight to the
+  implementer; an Expo upgrade runs a checklist loop with one review; only risky
+  or ambiguous work pays for discovery, specs, and two human gates.
 - **Verification is law** — `reins verify` is wired into your agent (Claude Code
   hooks, or an opencode plugin), so a failing required check is enforced before a
   session ends (Claude Code hard-blocks via exit code `2`; see
@@ -53,7 +58,7 @@ guard rails. Reins makes the repository itself the control surface:
 | Preset     | What you get                                                                                                                                                                                                                         |
 | ---------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
 | **`lite`** | `leader` / `implementer` / `reviewer` / `security-reviewer` / `design-reviewer`, the verification gate, the **Four R's** review contract (Risk, Readability, Reliability, Resilience), and the **Design quality** anti-slop contract |
-| **`sdd`**  | everything in `lite`, plus a Spec-Driven layer: `spec_author`, EARS requirements, a **human approval gate** before coding, and **requirement↔test traceability**                                                                     |
+| **`sdd`**  | everything in `lite`, plus a Spec-Driven layer scaled by lane: a one-page plan and one approval for `standard` work; `spec_author`, EARS requirements, two human gates, and **requirement↔test traceability** for `full` work        |
 
 ## Runtimes
 
@@ -83,7 +88,7 @@ The runtime-neutral parts (`docs/`, `CHECKPOINTS.md`, `feature_list.json`,
 ```
 .claude/
   agents/            leader, implementer, reviewer, security-reviewer, design-reviewer (+ spec_author for sdd)
-  commands/          reins-verify, reins-status, next-feature, autopilot, brainstorm, design-audit (+ new-spec, approve-spec, validate-discovery for sdd)
+  commands/          task, reins-verify, reins-status, next-feature, autopilot, brainstorm, design-audit (+ new-spec, approve-spec, validate-discovery for sdd)
   settings.json      hooks (verify on edit/stop, telemetry on SubagentStop) + permission allowlist
 CLAUDE.md            root instructions; imports @AGENTS.md
 AGENTS.md            navigation map of the harness
@@ -91,7 +96,7 @@ CHECKPOINTS.md       objective review checklist (each maps to an executable chec
 docs/                architecture, conventions, verification, security, four-rs, design, motion (+ sdd-workflow)
 feature_list.json    the work queue + its state machine
 progress/            current.md, history.md (append-only), subagent reports, telemetry.jsonl
-specs/_template/     requirements (EARS) / design / tasks   (sdd only)
+specs/_template/     plan (standard lane) · discovery / requirements (EARS) / design / tasks (full lane)   (sdd only)
 reins.config.json    stack, commands, and which checks the gate runs
 .github/workflows/   reins-verify.yml (CI runs the same gate)
 .reins/manifest.json what Reins generated + hashes (for updates)
@@ -146,7 +151,85 @@ Exit `0` ok, `1` a required check failed, and `2` + a block message under the
 `PostToolUse` / `Stop` / `SubagentStop` hooks.
 
 `--hook <PostToolUse|Stop|SubagentStop|PreCommit|CI>` · `--only <a,b,…>` ·
-`--changed` · `--quiet, -q` · `--cwd <dir>` · `--json`
+`--changed` · `--no-cache` · `--quiet, -q` · `--cwd <dir>` · `--json`
+
+The gate is tuned so the slow parts run once, not on every edit:
+
+- **Per edit** (`PostToolUse`) — lint on just the edited file
+  (`commands.lintChanged`, e.g. `npx eslint {files}`). Tests no longer run on
+  every `Edit`/`Write`.
+- **`--changed`** — lint + only the tests **related** to the changed files
+  (`commands.testChanged`, e.g. `npx jest --findRelatedTests … {files}` or
+  `npx vitest related --run {files}`), detected from your stack. Without a scoped
+  command it falls back to the full one.
+- **Result cache** — a passing lint/test run is recorded against a fingerprint of
+  the working tree; the next run on an identical tree (reviewer after implementer,
+  Stop after the leader) reuses it. Failures are never cached, CI never uses the
+  cache, and `--no-cache` / `"verify": { "cache": false }` forces a real run.
+
+### `reins route "<task>"`
+
+Triage a task before any work starts. Prints the recommended **lane**, the
+complexity, the implementer model and effort, the reviewers to run, and the human
+gate the lane needs. The `leader` runs it first for every task (`/task` does it
+for you); the answer is advice the leader may override with a stated reason.
+
+| Lane       | For                                                   | Process                                                                    | Human gates (sdd) |
+| ---------- | ----------------------------------------------------- | -------------------------------------------------------------------------- | ----------------- |
+| `quick`    | typo, copy, style tweak, rename, one-line fix         | implementer → gate; not queued, no spec, no reviewer                       | none              |
+| `chore`    | Expo/RN/Next SDK upgrades, dependency bumps, codemods | upstream-guide checklist, apply → verify → fix loop, one regression review | none              |
+| `standard` | ordinary features and bug fixes                       | one-page `specs/<slug>/plan.md` → implementer → reviewer                   | one               |
+| `full`     | auth, payments, data model, architecture, large/vague | discovery → spec (`spec_author`) → implementer → every applicable reviewer | two               |
+
+`--json` · `--provider <auto|jev|heuristic>` · `--cwd <dir>`
+
+```bash
+reins route "upgrade Expo to SDK 55"
+# Route — chore lane (fast) · via Jev
+#   Complexity:  medium
+#   Implementer: sonnet (effort medium)
+#   Reviewers:   reviewer (sonnet)
+#   Human gate:  none — implement right away
+#   Verify:      smoke e2e · ≤1 native build(s)/platform · no release build
+```
+
+Two rules hold whatever the classifier says: security-sensitive work is never
+`quick`, and `haiku` never implements `full`/`large` work.
+
+The route also sets a **verification budget**, because on mobile projects builds
+and e2e suites — not specs — are where the hours go. Outside the `full` lane, e2e
+is `smoke` (only the flows covering what changed); on Expo/React Native projects
+the implementer gets **one native build per platform** for the whole task and no
+release/archive build unless the task is about shipping. Checks only a human can
+make (physical devices, visual polish) go into a _Human checklist_ in the report
+instead of being simulated. An upgrade stays **one** `chore` feature: splitting it
+into bump / fix / verify features multiplies native builds and reviews.
+
+#### Jev-assisted triage
+
+With `TYPESAFE_API_KEY` set, `reins route` asks Jev
+(TypeSafe) five questions in a single request — lane, complexity, implementer
+model, security-sensitive?, UI-touching? — and gets each answer with a confidence
+(typically ~300–500 ms). Answers below `router.minConfidence` (default `0.6`) fall
+back to a local keyword heuristic **field by field**, and any error, timeout, or
+missing key falls back entirely; the output says which source decided. Only the
+task text and your stack (language, frameworks) are sent — never code.
+
+The key is read from the environment, or from a literal
+`export TYPESAFE_API_KEY=…` line in your shell rc files (agent sessions don't
+always source them).
+
+`provider: "auto"` uses Jev when a key is set; `"jev"` or `"heuristic"` force one.
+
+```json
+"router": {
+  "provider": "auto",
+  "url": "https://api.typesafe.ai/v1/systemone",
+  "model": "jev-latest",
+  "timeoutMs": 4000,
+  "minConfidence": 0.6
+}
+```
 
 ### `reins doctor`
 
@@ -167,8 +250,8 @@ preserves your edits. Dry run by default.
 
 Register a feature in `feature_list.json`.
 
-`--title <text>` · `--with-spec` (scaffold `specs/<slug>/`) ·
-`--depends-on <a,b>` · `--cwd <dir>` · `--json`
+`--title <text>` · `--lane <quick|chore|standard|full>` (default `full`) ·
+`--with-spec` (scaffold `specs/<slug>/`) · `--depends-on <a,b>` · `--cwd <dir>` · `--json`
 
 ### `reins add-agent <role>`
 
@@ -189,10 +272,29 @@ Show the active feature, the queue, and session cost/token telemetry.
 
 `--cwd <dir>` · `--json`
 
+### `reins telemetry report`
+
+Where the time went: subagent runs by role, wall time, shell time split into
+**build / e2e / test / install**, hook time, tokens, and a list-price cost
+estimate. Latest session by default.
+
+`--session <id|latest|all>` · `--cwd <dir>` · `--json`
+
+```
+Reins telemetry — session 7be35953
+  13 subagent run(s) · 280.9m of subagent time · ~$39.38 (list-price estimate)
+  Shell time 161.4m: build 27.1m · e2e 108.5m · test 6.6m · install 0.6m · other 18.6m · hooks 6.1m
+
+  role                 runs     time    build    e2e    test   hooks   out-tok    cost
+  implementer             3   220.6m    26.7m 107.4m    4.0m    1.6m      235k  $23.76
+  spec_author             4    36.3m     0.0m   0.1m    0.8m    4.3m      188k   $8.12
+```
+
 ### `reins telemetry record`
 
-Internal — invoked by the `SubagentStop` hook to append best-effort subagent
-cost/token usage to `progress/telemetry.jsonl`. Always exits `0`.
+Internal — invoked by the `SubagentStop` hook. Analyzes the finished subagent's
+**own** transcript (`agent_transcript_path`) and appends one record to
+`progress/telemetry.jsonl`. Always exits `0`.
 
 ## Slash commands (inside Claude Code or opencode)
 
@@ -201,15 +303,28 @@ cost/token usage to `progress/telemetry.jsonl`. Always exits `0`.
 agent's chat** (not the terminal) and they drive the harness flow for you.
 Arguments go right after the command, separated by spaces.
 
+### `/task <what you want done>`
+
+The everyday entry point. The leader triages the request with `reins route`,
+tells you the route in one line (lane · complexity · model · reviewers), and runs
+that lane — pausing only where the lane has a human gate.
+
+```
+/task fix the typo on the pricing page
+/task upgrade Expo to SDK 55
+/task add CSV export to the reports screen
+```
+
 ### `/brainstorm <idea>`
 
 Turns a rough idea into a sequence of small, ordered features. The leader
 explores the codebase, proposes a breakdown (saved to
 `progress/brainstorm_<epic>.md`), waits for your approval in chat, and then
-registers the features honoring `dependsOn`. Under the `sdd` preset it
-continues into the spec pipeline: discovery → your answers to its open
-questions → spec → approval, feature by feature, until everything is
-`approved`.
+registers the features honoring `dependsOn`, each with its own lane. Under the
+`sdd` preset it continues into the spec pipeline — discovery for every
+`standard`/`full` feature **in parallel**, all open questions in **one** message,
+specs drafted in parallel, one approval round — until everything is `approved`
+(`quick`/`chore` features need no approval and are ready right away).
 
 ```
 /brainstorm a CLI flag to export reports as CSV and PDF
@@ -219,10 +334,10 @@ questions → spec → approval, feature by feature, until everything is
 ### `/next-feature [feature-slug]`
 
 Starts work on the next feature in the dependency-ordered queue (or the one
-you name). `approved` features go straight to implementation — implementer,
-then reviewer (and security-reviewer when the change touches auth, input, IO,
-secrets, or dependencies) — with no further questions. `pending` features
-(created outside a brainstorm) first go through discovery.
+you name), following its lane. `approved` features — and `quick`/`chore` ones,
+which need no approval — go straight to implementation with no further
+questions, then get the review their lane calls for. A `pending` `standard`
+feature first gets its one-page plan; a `pending` `full` feature, discovery.
 
 ```
 /next-feature
@@ -233,7 +348,7 @@ secrets, or dependencies) — with no further questions. `pending` features
 
 The batch form of `/next-feature`: drives the **entire ready queue** to `done` in
 one unattended run, one feature at a time. It implements every `approved` feature
-(`pending` under lite) whose dependencies are `done`, in dependency order. It
+plus `quick`/`chore` ones (`pending` under lite) whose dependencies are `done`, in dependency order. It
 pauses once — showing the ordered queue and waiting for a single go-ahead — then
 runs to completion with no further questions, halting and reporting on the first
 blocker (a feature that ends up `blocked`, an unresolvable review, or a red tree).
@@ -297,8 +412,9 @@ in the resolved discovery. Ends at `spec_ready`, waiting for `/approve-spec`.
 
 ### `/approve-spec <feature-slug>` _(sdd only)_
 
-The human approval gate: verifies the spec is complete and marks the feature
-`approved`, ready for `/next-feature`. It never starts implementation itself.
+The human approval gate: verifies the plan (`standard` lane — answer its open
+questions in the same message) or the spec (`full` lane) is complete and marks the
+feature `approved`, ready for `/next-feature`. It never starts implementation itself.
 
 ```
 /approve-spec csv-export
@@ -307,6 +423,8 @@ The human approval gate: verifies the spec is complete and marks the feature
 A typical session, end to end:
 
 ```
+/task rename the "Save" button to "Save draft"   # quick: done in one pass, no ceremony
+/task upgrade Expo to SDK 55                     # chore: checklist loop, one review
 /brainstorm export reports as CSV and PDF   # decompose + (sdd) approve every spec in chat
 /next-feature                               # implement the first feature, gate-free
 /reins-status                               # see what's done and what's next

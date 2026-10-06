@@ -4,6 +4,77 @@ All notable changes to Reins are documented here. This project adheres to
 [Semantic Versioning](https://semver.org/). The harness template version tracks
 the package version, so `reins update` migrates installed harnesses to it.
 
+## 0.11.0
+
+### Fast lanes: process that scales to the task, Jev-assisted triage, and a gate that runs once
+
+Fixes the "every task takes an hour" problem: an Expo upgrade spent about an hour drafting each spec
+and another hour executing it, because every task — a typo or an auth rewrite — paid for discovery,
+EARS specs, two human gates, and a full review. On top of that, every `Edit`/`Write` re-ran the
+whole test suite.
+
+- **Lanes.** Every task is triaged into `quick` (typo, copy, rename: implementer → gate, not queued,
+  no reviewer), `chore` (SDK upgrades, dependency bumps, codemods: an upstream-guide checklist worked
+  in an apply → verify → fix loop, one regression review, no gate), `standard` (one-page
+  `specs/<slug>/plan.md`, **one** approval, implementer + reviewer) or `full` (the existing
+  discovery → spec → approval pipeline). The implementer and reviewer scale what they read and
+  write to the lane, so a chore no longer produces a Four R's essay.
+- **`reins route "<task>"`** recommends the lane, complexity, implementer model and effort,
+  reviewers, and human gate. The leader runs it first for every task and passes the models on to
+  its subagents (`haiku` for trivial edits, `opus` for large risky work). Two rules hold whatever the
+  classifier says: security-sensitive work is never `quick`, and `haiku` never implements
+  `full`/`large` work.
+- **Jev support.** With `TYPESAFE_API_KEY` set (environment or a literal `export` in a shell rc file),
+  `reins route` asks Jev all five triage questions in one request (~300–500 ms). Answers below
+  `router.minConfidence` fall back to a local keyword heuristic field by field; errors, timeouts, or
+  a missing key fall back entirely. Only the task text and stack are sent. Configure under `router`
+  in `reins.config.json` (`provider: auto | jev | heuristic`).
+- **`/task <request>`** — a new everyday entry point: triage, tell the human the route in one line,
+  run the lane.
+- **Faster `/brainstorm`.** Each feature gets a lane; discovery runs for all `standard`/`full`
+  features in parallel, every open question is asked in one message, `full` specs are drafted in
+  parallel, and approval is a single round. Several features may now be `analyzing` at once — only
+  `in_progress` is limited to one.
+- **A gate that runs once, not on every edit.**
+  - The `PostToolUse` hook now lints just the edited file (from the hook payload) instead of
+    running lint + the full test suite on every `Edit`/`Write`.
+  - `verify --changed` actually scopes lint and tests: new `commands.lintChanged` /
+    `commands.testChanged` (with a `{files}` placeholder) are detected from the stack — eslint/biome,
+    jest/jest-expo (`--findRelatedTests`), vitest (`related`), ruff — and fall back to the full
+    command when absent. Untracked files count as changed; nothing changed now means nothing to
+    check (it used to mean "scan everything").
+  - **Result cache** — a passing lint/test run is recorded against a fingerprint of the working tree
+    (`.reins/cache/verify-results.json`), and the next run on an identical tree reuses it — so the
+    reviewer, the leader, and the Stop hook no longer each re-run a suite the implementer just ran.
+    Edits under `progress/`, `specs/`, and `feature_list.json` don't invalidate test results.
+    Failures are never cached, CI never uses the cache, and `--no-cache` / `verify.cache: false`
+    force a real run.
+- `feature_list.json` features carry an optional `lane` (`reins add-feature --lane`); `verify` checks
+  each lane's artifacts (`full`: discovery + spec, `standard`: `plan.md`, `quick`/`chore`: none). A
+  feature without a lane is `full`, so existing queues behave as before. `reins status` shows lanes.
+- **Verification budget.** `reins route` also sets how much verification a task gets — e2e
+  `none`/`smoke`/`full`, and on Expo/React Native projects the native builds per platform (1 outside
+  the `full` lane) and whether a release/archive build is in scope (only when the task is about
+  shipping). The implementer builds once and reuses the build, reports every build and e2e run with
+  its duration, and moves device/visual checks to a _Human checklist_; the reviewer doesn't ask for
+  verification beyond the budget; `spec_author` sizes verification requirements to the change; and
+  `/brainstorm` keeps an upgrade as **one** `chore` feature. (Measured on a real Expo SDK 57 upgrade:
+  of 3.7 h of implementer time, 2.2 h were native builds and e2e/visual passes, repeated across three
+  features.)
+- **Telemetry fixed.** `SubagentStop` records used to read the _main_ session transcript, so every
+  line was the cumulative usage of the whole session so far (summing them overstated cost by orders
+  of magnitude), and usage repeated on every content block of a message was counted each time (~2.6×
+  on cache reads). Records (`"v": 2`) now come from the subagent's own transcript
+  (`agent_transcript_path`, or the session's `subagents/` layout), count each message once, and
+  carry the role, description, wall time, hook time, and shell time split into build / e2e / test /
+  install. Each subagent is recorded once. Pricing is updated to current list prices (Opus 5.5,
+  Sonnet 5.5, Haiku 4.5, Fable 5/5.1, Opus 4.5–4.8). Older records are kept but excluded from totals.
+- **`reins telemetry report`** — runs, time, build/e2e/test/hook time, tokens, and cost by role, for
+  the latest session (or `--session <id|all>`). `reins status` now shows real per-session numbers.
+- **Upgrading:** `reins update` adds `commands.lintChanged`/`testChanged` (detected), `verify.cache`,
+  and `router`, and replaces `verify.perHook.PostToolUse` only if it is still the old
+  `["lint", "unit"]` default.
+
 ## 0.10.0
 
 ### Dependency-audit allowlist and a Stop hook that can't loop forever

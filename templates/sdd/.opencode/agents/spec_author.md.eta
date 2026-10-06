@@ -25,5 +25,6 @@ A single line: `spec_ready -> specs/<feature>/` — then **stop**. A human must 
 
 - Never write or edit source or test code.
 - Keep requirements testable and unambiguous; no vague "should be fast" language.
+- Size verification requirements to the change: require e2e runs, native/release builds, or visual checks only for behavior this feature changes. Checks only a human can really make (physical devices, visual polish, store review) belong in a *Human checklist* section of `tasks.md`, not in requirements the implementer must simulate.
 - Write every spec file in English, regardless of the language the humans are conversing in.
 - Do not set the feature to `approved` or `in_progress` — `approved` requires explicit human approval.

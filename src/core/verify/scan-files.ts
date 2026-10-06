@@ -1,6 +1,7 @@
 import { readdir } from "node:fs/promises";
 import path from "node:path";
 import { runShell } from "../exec/run-command";
+import { listChangedFiles } from "./changed-files";
 import type { CheckContext } from "./types";
 
 const SKIP_DIRS = new Set([
@@ -33,19 +34,13 @@ async function walkFiles(root: string, dir: string, out: string[], depth: number
 }
 
 /**
- * The repo's scannable files, relative to `ctx.cwd`: the changed/staged set when
- * `ctx.changed`, else every tracked file, else a bounded directory walk. Shared by
- * the secret scan and the design slop scan.
+ * The repo's scannable files, relative to `ctx.cwd`: the changed set when
+ * `ctx.changed` (see `listChangedFiles` — empty when nothing changed), else
+ * every tracked file, else a bounded directory walk. Shared by the secret scan
+ * and the design slop scan.
  */
 export async function filesToScan(ctx: CheckContext): Promise<string[]> {
-  if (ctx.changed) {
-    const staged = await runShell("git diff --cached --name-only --diff-filter=ACM", {
-      cwd: ctx.cwd,
-    });
-    if (staged.exitCode === 0 && staged.stdout.trim()) return splitLines(staged.stdout);
-    const working = await runShell("git diff --name-only --diff-filter=ACM", { cwd: ctx.cwd });
-    if (working.exitCode === 0 && working.stdout.trim()) return splitLines(working.stdout);
-  }
+  if (ctx.changed) return listChangedFiles(ctx);
   const tracked = await runShell("git ls-files", { cwd: ctx.cwd });
   if (tracked.exitCode === 0 && tracked.stdout.trim()) return splitLines(tracked.stdout);
 

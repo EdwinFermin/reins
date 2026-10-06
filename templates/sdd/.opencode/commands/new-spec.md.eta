@@ -8,4 +8,6 @@ Delegate to the `spec_author` subagent to write a spec for the feature `$ARGUMEN
 - `design.md` with files to touch, signatures, and one rejected alternative,
 - `tasks.md` with `T1..Tn` and `T → R → test` traceability.
 
+This is the `full` lane's spec. (A `standard` feature needs only `specs/$ARGUMENTS/plan.md`, written by the leader — see `/next-feature`.)
+
 When done, set the feature to `spec_ready` in `feature_list.json` and **stop for human approval** — do not implement yet.

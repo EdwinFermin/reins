@@ -1,15 +1,23 @@
 import type { Readable } from "node:stream";
 
+export interface HookPayload {
+  sessionId: string | null;
+  /** Files the triggering tool call touched (PostToolUse on Edit/Write/MultiEdit). */
+  filePaths: string[];
+}
+
 /**
- * Read the JSON payload Claude Code pipes to a hook command on stdin and return
- * its `session_id`. Never blocks a manual run: a TTY is skipped, and an open
- * pipe that never closes is abandoned after `timeoutMs`.
+ * Read the JSON payload Claude Code pipes to a hook command on stdin: its
+ * `session_id`, and for a PostToolUse on a file tool the edited path. Never
+ * blocks a manual run: a TTY is skipped, and an open pipe that never closes is
+ * abandoned after `timeoutMs`.
  */
-export async function readHookSessionId(
+export async function readHookPayload(
   stdin: Readable & { isTTY?: boolean },
   timeoutMs = 1_000,
-): Promise<string | null> {
-  if (stdin.isTTY) return null;
+): Promise<HookPayload> {
+  const empty: HookPayload = { sessionId: null, filePaths: [] };
+  if (stdin.isTTY) return empty;
   const text = await new Promise<string>((resolve) => {
     const chunks: Buffer[] = [];
     let done = false;
@@ -35,9 +43,26 @@ export async function readHookSessionId(
     stdin.resume();
   });
   try {
-    const data = JSON.parse(text) as { session_id?: unknown };
-    return typeof data.session_id === "string" && data.session_id ? data.session_id : null;
+    const data = JSON.parse(text) as {
+      session_id?: unknown;
+      tool_input?: { file_path?: unknown; filePath?: unknown; edits?: unknown };
+    };
+    const sessionId =
+      typeof data.session_id === "string" && data.session_id ? data.session_id : null;
+    const input = data.tool_input ?? {};
+    const filePaths = [input.file_path, input.filePath].filter(
+      (p): p is string => typeof p === "string" && p.length > 0,
+    );
+    return { sessionId, filePaths: [...new Set(filePaths)] };
   } catch {
-    return null;
+    return empty;
   }
+}
+
+/** Back-compat wrapper: just the session id. */
+export async function readHookSessionId(
+  stdin: Readable & { isTTY?: boolean },
+  timeoutMs = 1_000,
+): Promise<string | null> {
+  return (await readHookPayload(stdin, timeoutMs)).sessionId;
 }

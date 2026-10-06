@@ -31,6 +31,15 @@ export const AGENT_ROLES = [
 ] as const;
 export const MODEL_ALIASES = ["inherit", "sonnet", "opus", "haiku", "fable"] as const;
 export const EFFORT_LEVELS = ["low", "medium", "high", "xhigh", "max"] as const;
+/**
+ * How much process a task gets. The leader picks one per task (`reins route`):
+ * quick = implement + gate, no queue entry, no spec, no reviewer;
+ * chore = upgrades/bumps/codemods: apply → verify → fix loop, one review;
+ * standard = one-page plan + one human gate, implementer + reviewer;
+ * full = discovery → spec → approval (SDD) and every applicable reviewer.
+ */
+export const LANES = ["quick", "chore", "standard", "full"] as const;
+export const ROUTER_PROVIDERS = ["auto", "jev", "heuristic"] as const;
 
 const CommandSchema = z.union([
   z.string(),
@@ -143,6 +152,22 @@ export const StopPolicySchema = z
   .strict()
   .default({});
 
+/**
+ * `reins route` — task triage. `auto` asks Jev (TypeSafe) when
+ * TYPESAFE_API_KEY is set and falls back to the local heuristic otherwise;
+ * answers below `minConfidence` also fall back, field by field.
+ */
+export const RouterSchema = z
+  .object({
+    provider: z.enum(ROUTER_PROVIDERS).default("auto"),
+    url: z.string().url().default("https://api.typesafe.ai/v1/systemone"),
+    model: z.string().min(1).default("jev-latest"),
+    timeoutMs: z.number().int().positive().default(4000),
+    minConfidence: z.number().min(0).max(1).default(0.6),
+  })
+  .strict()
+  .default({});
+
 export const ReinsConfigSchema = z
   .object({
     $schema: z.string().optional(),
@@ -160,6 +185,11 @@ export const ReinsConfigSchema = z
       lint: CommandSchema.nullable().default(null),
       e2e: CommandSchema.nullable().default(null),
       typecheck: CommandSchema.nullable().default(null),
+      // Scoped variants for `verify --changed`: `{files}` is replaced by the
+      // changed files (appended when the placeholder is absent). Null = fall
+      // back to the full command.
+      lintChanged: CommandSchema.nullable().default(null),
+      testChanged: CommandSchema.nullable().default(null),
     }),
     verify: z
       .object({
@@ -168,6 +198,9 @@ export const ReinsConfigSchema = z
           .default(["lint", "unit", "security", "design", "feature-list"]),
         perHook: z.record(z.enum(HOOK_NAMES), z.array(z.enum(CHECK_IDS))).default({}),
         stop: StopPolicySchema,
+        // Reuse a passing lint/test result when the working tree is unchanged
+        // since it passed (never under --changed or the CI hook).
+        cache: z.boolean().default(true),
       })
       .default({}),
     security: SecurityGatesSchema.default({}),
@@ -196,6 +229,7 @@ export const ReinsConfigSchema = z
       })
       .strict()
       .default({}),
+    router: RouterSchema,
   })
   .strict();
 
@@ -214,3 +248,5 @@ export type AuditTool = (typeof AUDIT_TOOLS)[number];
 export type AuditSeverity = (typeof AUDIT_SEVERITIES)[number];
 export type AuditIgnore = z.infer<typeof AuditIgnoreSchema>;
 export type StopPolicy = z.infer<typeof StopPolicySchema>;
+export type Lane = (typeof LANES)[number];
+export type RouterConfig = z.infer<typeof RouterSchema>;

@@ -1,0 +1,5 @@
+---
+description: Do any task at the right speed — the leader triages it into a lane (quick / chore / standard / full) and runs that lane.
+---
+
+<%~ include("partials/task-body.md.eta", it) %>

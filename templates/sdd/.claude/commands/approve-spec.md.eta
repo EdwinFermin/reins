@@ -1,11 +1,17 @@
 ---
-description: Approve a spec_ready feature; marks it `approved` so /next-feature can implement it.
+description: Approve a spec_ready feature (its plan or spec); marks it `approved` so /next-feature can implement it.
 argument-hint: "<feature-slug>"
 allowed-tools: Read, Edit, Bash
 ---
 
-A human is approving the spec for `$ARGUMENTS`. Confirm that `specs/$ARGUMENTS/` contains `requirements.md`, `design.md`, and `tasks.md`, then set the feature's state to `approved` in `feature_list.json`.
+A human is approving `$ARGUMENTS`. Check the feature's `lane` in `feature_list.json` (none recorded = `full`):
+
+- **standard** — confirm `specs/$ARGUMENTS/plan.md` exists with acceptance criteria and tasks. If the human answered open questions in this message, record the answers in the plan's **Resolution** (adjusting the plan where an answer changes it). Every open question must be resolved.
+- **full** — confirm `specs/$ARGUMENTS/` contains `requirements.md`, `design.md`, and `tasks.md`.
+- **quick / chore** — nothing to approve; say so (these lanes go straight to `/next-feature`).
+
+Then set the feature's state to `approved` in `feature_list.json`.
 
 Do not start implementation here — `/next-feature` picks up `approved` features and implements them without further questions or approvals.
 
-If the spec is incomplete or ambiguous, say exactly what is missing instead of approving.
+If the plan or spec is incomplete or ambiguous, say exactly what is missing instead of approving.

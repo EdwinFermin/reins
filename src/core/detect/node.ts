@@ -93,6 +93,26 @@ export const nodeDetector: Detector = {
       };
     }
 
+    // Scoped variants used by `verify --changed` (the per-edit hook): lint and
+    // test only what changed instead of the whole project.
+    const testScript = scripts.test ?? "";
+    if (deps.eslint) {
+      commands.lintChanged = high("npx eslint {files}", "eslint dependency");
+    } else if (deps["@biomejs/biome"]) {
+      commands.lintChanged = high("npx biome check {files}", "@biomejs/biome dependency");
+    }
+    if (/\bvitest\b/.test(testScript) || (!testScript.includes("jest") && deps.vitest)) {
+      commands.testChanged = high(
+        "npx vitest related --run --passWithNoTests {files}",
+        "vitest test runner",
+      );
+    } else if (/\bjest\b/.test(testScript) || deps.jest || deps["jest-expo"]) {
+      commands.testChanged = high(
+        "npx jest --findRelatedTests --passWithNoTests {files}",
+        "jest test runner",
+      );
+    }
+
     const frameworks = [
       ...new Set(
         Object.keys(deps)

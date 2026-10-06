@@ -14,6 +14,8 @@ export interface ResolvedCommands {
   lint: string | null;
   e2e: string | null;
   typecheck: string | null;
+  lintChanged: string | null;
+  testChanged: string | null;
 }
 
 /** Per-role model/effort resolved for templates: null means inherit -> omit the field. */
@@ -141,6 +143,8 @@ export function buildTemplateContext(
     lint: commandToString(config.commands.lint),
     e2e: commandToString(config.commands.e2e),
     typecheck: commandToString(config.commands.typecheck),
+    lintChanged: commandToString(config.commands.lintChanged),
+    testChanged: commandToString(config.commands.testChanged),
   };
 
   return {

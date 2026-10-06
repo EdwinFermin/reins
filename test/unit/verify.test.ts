@@ -186,7 +186,7 @@ describe("runVerify — feature-list discovery gate (sdd)", () => {
     expect(report.results[0]?.status).toBe("fail");
   });
 
-  it("fails when two features occupy the active slot (analyzing + in_progress)", async () => {
+  it("allows analysis alongside the one in_progress feature (parallel discovery)", async () => {
     const cwd = await tmp();
     await writeFile(
       path.join(cwd, "feature_list.json"),
@@ -194,13 +194,14 @@ describe("runVerify — feature-list discovery gate (sdd)", () => {
         version: 1,
         features: [
           { slug: "a", state: "analyzing" },
-          { slug: "b", state: "in_progress" },
+          { slug: "b", state: "analyzing" },
+          { slug: "c", state: "in_progress" },
         ],
       }),
     );
     const config = makeConfig({ preset: "lite" });
     const report = await runVerify({ cwd, config, only: ["feature-list"] });
-    expect(report.results[0]?.status).toBe("fail");
+    expect(report.results[0]?.status).toBe("pass");
   });
 });
 
@@ -357,5 +358,52 @@ describe("resolveProfile + parseCheckIds", () => {
     const { ids, invalid } = parseCheckIds("lint, unit, bogus");
     expect(ids).toEqual(["lint", "unit"]);
     expect(invalid).toEqual(["bogus"]);
+  });
+});
+
+describe("runVerify — feature-list lanes (sdd)", () => {
+  async function run(features: unknown[], files: Record<string, string> = {}) {
+    const cwd = await tmp();
+    await writeFile(path.join(cwd, "feature_list.json"), JSON.stringify({ version: 1, features }));
+    for (const [rel, text] of Object.entries(files)) {
+      await mkdir(path.dirname(path.join(cwd, rel)), { recursive: true });
+      await writeFile(path.join(cwd, rel), text);
+    }
+    const report = await runVerify({
+      cwd,
+      config: makeConfig({ preset: "sdd" }),
+      only: ["feature-list"],
+    });
+    return report.results[0]!;
+  }
+
+  it("requires plan.md (not discovery or a full spec) for an approved standard feature", async () => {
+    const f = [{ slug: "csv", state: "approved", lane: "standard" }];
+    const missing = await run(f);
+    expect(missing.status).toBe("fail");
+    expect(missing.summary).toContain("plan.md");
+    expect((await run(f, { "specs/csv/plan.md": "# Plan\n" })).status).toBe("pass");
+  });
+
+  it("lets chore and quick features start with no spec artifacts", async () => {
+    const r = await run([
+      { slug: "expo-55", state: "in_progress", lane: "chore" },
+      { slug: "copy", state: "pending", lane: "quick" },
+    ]);
+    expect(r.status).toBe("pass");
+  });
+
+  it("treats a feature without a lane as full", async () => {
+    const r = await run([{ slug: "auth", state: "approved" }], {
+      "specs/auth/discovery.md": "# Discovery\n",
+    });
+    expect(r.status).toBe("fail");
+    expect(r.summary).toContain("complete spec");
+  });
+
+  it("rejects an unknown lane", async () => {
+    const r = await run([{ slug: "x", state: "pending", lane: "turbo" }]);
+    expect(r.status).toBe("fail");
+    expect(r.summary).toContain("invalid lane");
   });
 });

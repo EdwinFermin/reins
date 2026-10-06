@@ -8,7 +8,11 @@ export function formatStatus(s: StatusReport): string {
   const lines: string[] = ["", `Reins status — ${s.preset} harness v${s.harnessVersion}`];
 
   lines.push(
-    `  Active:    ${s.active ? `${s.active.slug}${s.active.title ? ` (${s.active.title})` : ""}` : "none"}`,
+    `  Active:    ${
+      s.active
+        ? `${s.active.slug}${s.active.title ? ` (${s.active.title})` : ""} [${s.active.lane}]`
+        : "none"
+    }`,
   );
 
   const countStr =
@@ -17,14 +21,14 @@ export function formatStatus(s: StatusReport): string {
       .join(", ") || "no features yet";
   lines.push(`  Features:  ${s.total} total — ${countStr}`);
 
-  if (s.pending.length > 0) {
-    lines.push(`  Queue:     ${s.pending.join(", ")}`);
+  if (s.queue.length > 0) {
+    lines.push(`  Queue:     ${s.queue.map((q) => `${q.slug} [${q.lane}]`).join(", ")}`);
   }
 
   lines.push(
     `  Telemetry: ${
       s.telemetry
-        ? `${s.telemetry.subagents} subagent run(s), ~$${s.telemetry.costUsd.toFixed(2)} this session`
+        ? `${s.telemetry.subagents} subagent run(s), ${(s.telemetry.durationMs / 60_000).toFixed(1)} min, ~$${s.telemetry.costUsd.toFixed(2)} this session — \`reins telemetry report\` for the breakdown`
         : "none yet"
     }`,
   );

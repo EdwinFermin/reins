@@ -1,0 +1,43 @@
+# Plan — <feature>
+
+> **Standard lane**: discovery and spec on one page, approved in a single step.
+> Written by the **leader** from real exploration of this codebase — not from
+> the title alone. Keep it short: a reader should approve it in two minutes.
+> Write this document in English.
+
+## Request
+
+What is being asked, in one or two sentences.
+
+## Findings
+
+What the code actually shows: the relevant files, existing patterns to reuse,
+and constraints. Cite real paths (e.g. `src/...`).
+
+## Approach
+
+What changes where, in a few bullets. One alternative considered and why it
+lost, in one line.
+
+## Open questions ← answered when the plan is approved (delete if there are none)
+
+1. …
+
+## Acceptance criteria
+
+Each one objectively testable; the implementer writes at least one test per
+criterion.
+
+- AC1 — WHEN … THEN …
+- AC2 — …
+
+## Tasks
+
+- [ ] T1 — <change> (AC1)
+- [ ] T2 — <test> (AC1, AC2)
+- [ ] T3 — `<%= it.verifyCmd %>` is green
+
+## Resolution ← filled in at approval
+
+- Q1 → …
+- Approved: <date>

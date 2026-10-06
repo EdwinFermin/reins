@@ -63,6 +63,11 @@ const NEUTRAL_SDD: TemplateEntry[] = [
     dest: "specs/_template/discovery.md",
   },
   {
+    id: "spec-plan",
+    template: "sdd/specs/_template/plan.md.eta",
+    dest: "specs/_template/plan.md",
+  },
+  {
     id: "spec-requirements",
     template: "sdd/specs/_template/requirements.md.eta",
     dest: "specs/_template/requirements.md",
@@ -135,6 +140,11 @@ const CLAUDE: TemplateEntry[] = [
     id: "cmd-design-audit",
     template: "common/.claude/commands/design-audit.md.eta",
     dest: ".claude/commands/design-audit.md",
+  },
+  {
+    id: "cmd-task",
+    template: "common/.claude/commands/task.md.eta",
+    dest: ".claude/commands/task.md",
   },
   { id: "claude-md", template: "common/CLAUDE.md.eta", dest: "CLAUDE.md", kind: "claude-md" },
   { id: "agents-md", template: "common/AGENTS.md.eta", dest: "AGENTS.md" },
@@ -219,6 +229,11 @@ const OPENCODE: TemplateEntry[] = [
     id: "cmd-design-audit",
     template: "common/.opencode/commands/design-audit.md.eta",
     dest: ".opencode/commands/design-audit.md",
+  },
+  {
+    id: "cmd-task",
+    template: "common/.opencode/commands/task.md.eta",
+    dest: ".opencode/commands/task.md",
   },
   {
     id: "opencode-plugin",
@@ -329,6 +344,9 @@ export function buildInitialFeatureList(): unknown {
         "done",
         "blocked",
       ],
+      // A feature without a lane is `full`. A one-off `quick` task is never
+      // queued; `quick` appears here only for small features of an epic.
+      validLanes: ["quick", "chore", "standard", "full"],
     },
     features: [],
   };

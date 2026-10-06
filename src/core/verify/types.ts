@@ -37,6 +37,15 @@ export interface CheckContext {
   changed: boolean;
   /** Clock override (tests); allowlist expiry is evaluated against it. */
   now?: Date;
+  /** The hook this run serves (PostToolUse, Stop, PreCommit, CI, …). */
+  hook?: string;
+  /**
+   * Explicit changed set (relative paths), e.g. the file a PostToolUse hook
+   * just edited. When absent, `--changed` asks git.
+   */
+  changedFiles?: string[];
+  /** Pass-result cache for command checks; absent = always run. */
+  cache?: import("./result-cache").ResultCache;
 }
 
 export type Check = (ctx: CheckContext) => Promise<CheckResult>;

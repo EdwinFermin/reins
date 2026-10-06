@@ -82,8 +82,11 @@ export const pythonDetector: Detector = {
     commands.test = has("pytest")
       ? cmd(`${runPrefix}pytest`, "high", "pytest dependency")
       : cmd(`${runPrefix}pytest`, "low", "python default");
-    if (has("ruff")) commands.lint = cmd(`${runPrefix}ruff check .`, "high", "ruff dependency");
-    else if (has("flake8")) commands.lint = cmd(`${runPrefix}flake8`, "high", "flake8 dependency");
+    if (has("ruff")) {
+      commands.lint = cmd(`${runPrefix}ruff check .`, "high", "ruff dependency");
+      commands.lintChanged = cmd(`${runPrefix}ruff check {files}`, "high", "ruff dependency");
+    } else if (has("flake8"))
+      commands.lint = cmd(`${runPrefix}flake8`, "high", "flake8 dependency");
     if (has("mypy")) commands.typecheck = cmd(`${runPrefix}mypy .`, "high", "mypy dependency");
 
     const frameworks = PY_FRAMEWORKS.filter(has);

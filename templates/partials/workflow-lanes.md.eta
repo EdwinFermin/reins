@@ -1,0 +1,18 @@
+**Every task starts with triage:** `npx reins route "<task>"` (or just `/task <task>`) picks a **lane** — and with it how much process the task gets, which models do the work, and which reviewers check it. It asks Jev when `TYPESAFE_API_KEY` is set, a local heuristic otherwise; the leader may override it with a stated reason.
+
+| Lane | For | Flow | Human gate |
+| --- | --- | --- | --- |
+| `quick` | typo, copy, style tweak, rename, one-line fix | implementer → gate (no queue entry, no spec, no reviewer) | none |
+| `chore` | upgrades (Expo/RN/Next SDK), dependency bumps, codemods — one feature per upgrade | `pending` → `in_progress` → implementer (upstream-guide checklist, apply → verify → fix, on a build budget) → one regression review → `done` | none |
+<% if (it.isSdd) { %>| `standard` | ordinary features and bug fixes | `pending` → leader writes `specs/<slug>/plan.md` → `spec_ready` → **human approves the plan** → `approved` → implementer + reviewer → `done` | one |
+| `full` | auth, payments, data model, architecture, large/ambiguous | `pending` → **leader** writes `discovery.md` → `needs_clarification` → **human validates intent** → **spec_author** writes spec → `spec_ready` → **human approves** → `approved` → implementer + every applicable reviewer → `done` | two |
+<% } else { %>| `standard` | ordinary features and bug fixes | `pending` → `in_progress` → implementer + reviewer → `done` | none |
+| `full` | auth, payments, data model, architecture, large/ambiguous | explorers → implementer → reviewer + **security-reviewer** / **design-reviewer** → `done` | none |
+<% } %>
+A feature without a recorded lane is treated as `full`. The route also sets a **verification budget** — e2e `none`/`smoke`/`full`, and on native apps how many builds per platform and whether a release build is in scope — because builds and e2e suites, not specs, are where most hours go. `reins telemetry report` shows where the time actually went.
+
+**Epic (optional):** `/brainstorm <idea>` decomposes a rough idea into several features, each with its own lane; after the human approves the breakdown it queues them as `pending` (honoring `dependsOn`).<% if (it.isSdd) { %> It then runs discovery for every `standard`/`full` feature **in parallel**, asks all their open questions in **one** message, drafts the specs in parallel, and takes one approval round — ending with every feature `approved` (or, for `quick`/`chore`, ready) so implementation runs gate-free via `/next-feature`, one feature per invocation.<% } else { %> Then each feature runs its lane's flow, one at a time.<% } %>
+
+One feature `in_progress` at a time. Every result is written to `progress/`; replies to the leader are one-line references like `done -> progress/impl_<feature>.md`.
+
+**Batch (optional):** `/autopilot` is the batch form of `/next-feature` — it implements the whole ready queue (<% if (it.isSdd) { %>`approved` features, plus `quick`/`chore` ones<% } else { %>`pending` features<% } %> whose deps are `done`) back-to-back, one at a time, pausing once for a go-ahead and halting on the first blocker.

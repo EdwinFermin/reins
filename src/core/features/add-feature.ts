@@ -1,5 +1,6 @@
 import { mkdir, readFile, readdir, writeFile } from "node:fs/promises";
 import path from "node:path";
+import { LANES, type Lane } from "../config/schema";
 import { pathExists, readJsonIfExists } from "../fs/read";
 
 const SLUG_RE = /^[a-z0-9][a-z0-9-]*$/;
@@ -10,6 +11,8 @@ export interface AddFeatureOptions {
   title?: string;
   withSpec?: boolean;
   dependsOn?: string[];
+  /** How much process the feature gets (see `reins route`). Omitted = full. */
+  lane?: Lane;
 }
 
 export interface AddFeatureResult {
@@ -33,6 +36,9 @@ export async function addFeature(opts: AddFeatureOptions): Promise<AddFeatureRes
   if (!SLUG_RE.test(opts.slug)) {
     return { ...base, reason: "invalid slug (use lowercase letters, digits, and hyphens)" };
   }
+  if (opts.lane !== undefined && !(LANES as readonly string[]).includes(opts.lane)) {
+    return { ...base, reason: `invalid lane "${opts.lane}" (use ${LANES.join(", ")})` };
+  }
 
   const flPath = path.join(opts.cwd, "feature_list.json");
   const fl = await readJsonIfExists<FeatureList>(flPath);
@@ -48,6 +54,7 @@ export async function addFeature(opts: AddFeatureOptions): Promise<AddFeatureRes
     slug: opts.slug,
     title: opts.title ?? opts.slug,
     state: "pending",
+    ...(opts.lane ? { lane: opts.lane } : {}),
     dependsOn: opts.dependsOn ?? [],
     createdAt: now,
     updatedAt: now,

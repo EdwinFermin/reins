@@ -1,0 +1,8 @@
+<% const launch = it.runtime === "opencode" ? "delegate to" : "launch"; %>Acting as the `leader`, get this done: `$ARGUMENTS`. If it is empty, ask the human what they want before going further.
+
+1. **Triage.** Run `npx reins route "$ARGUMENTS" --json`. Glance at the code it touches — enough to confirm or correct the lane, not a full investigation — then tell the human the route in one line (lane · complexity · implementer model · reviewers · source) and start. Don't wait for a go-ahead unless the lane has a human gate.
+2. **Run the lane** exactly as the table below describes. Several independent features hiding in the request? Stop and suggest `/brainstorm` instead.
+3. **Finish.** Run `<%= it.verifyCmd %>`, then report in a few lines: what changed, the lane it ran in, and anything left for the human.
+
+<%~ include("./triage.md.eta", it) %>
+Remember: you orchestrate and <%= launch %> subagents to write code; their results go to `progress/` (always in English), and exactly one feature is `in_progress` at a time.

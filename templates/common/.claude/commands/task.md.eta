@@ -1,0 +1,7 @@
+---
+description: Do any task at the right speed — the leader triages it into a lane (quick / chore / standard / full) and runs that lane.
+argument-hint: "<what you want done>"
+allowed-tools: Read, Write, Edit, Bash, Agent
+---
+
+<%~ include("partials/task-body.md.eta", it) %>

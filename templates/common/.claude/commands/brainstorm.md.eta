@@ -8,7 +8,7 @@ Acting as the `leader`, help the human turn a rough idea into a sequence of smal
 
 1. **Understand the idea.** Read `AGENTS.md` and skim the relevant parts of the codebase. Ask the human any clarifying questions you need. For a large or unfamiliar area, launch `Explore` subagents so the breakdown is grounded in what actually exists — don't guess the architecture. Explorers are read-only and disposable: launch them cheap (e.g. `model: haiku`, low effort) — their output is summarized findings, not code.
 
-2. **Decompose.** Break the idea into discrete features, each small enough to flow through the harness one at a time. Choose an `<epic-slug>` for the whole idea and a `slug` for each feature — all matching `^[a-z0-9][a-z0-9-]*$`. For every feature capture a one-line title, a one-line rationale, its `dependsOn` (other slugs in this batch), and where it sits in the recommended order.
+2. **Decompose.** Break the idea into discrete features, each small enough to flow through the harness one at a time. Choose an `<epic-slug>` for the whole idea and a `slug` for each feature — all matching `^[a-z0-9][a-z0-9-]*$`. For every feature capture a one-line title, a one-line rationale, its `dependsOn` (other slugs in this batch), where it sits in the recommended order, and its **lane** — run `npx reins route "<feature title>" --json` for each (quick / chore / standard / full) and keep or override its answer. Lanes decide how much process each feature gets: splitting an epic should not give a one-line tweak the ceremony of an auth rewrite. An **upgrade** (SDK, framework, major dependency) is **one** `chore` feature — bump, breaking-change fixes, and verification together; splitting it into bump / fix / verification features multiplies native builds and reviews.
 
 3. **Write the breakdown to disk** at `progress/brainstorm_<epic-slug>.md` *before* you stop, so the proposal survives even if the conversation is later compacted. Use this shape:
 
@@ -19,10 +19,10 @@ Acting as the `leader`, help the human turn a rough idea into a sequence of smal
    <the human's idea, as you understand it>
 
    ## Proposed features
-   | # | slug | title | depends on | why |
-   | - | ---- | ----- | ---------- | --- |
-   | 1 | <slug> | <title> | — | <rationale> |
-   | 2 | <slug> | <title> | <slug> | <rationale> |
+   | # | slug | title | lane | depends on | why |
+   | - | ---- | ----- | ---- | ---------- | --- |
+   | 1 | <slug> | <title> | standard | — | <rationale> |
+   | 2 | <slug> | <title> | quick | <slug> | <rationale> |
 
    ## Open questions
    - <anything the human still needs to decide>
@@ -36,26 +36,26 @@ Acting as the `leader`, help the human turn a rough idea into a sequence of smal
 5. **On approval, register the features** as `pending`, in dependency-first order (a feature's dependencies before the feature itself), by running for each one:
 
    ```
-   reins add-feature <slug> --title "<title>" --depends-on <a,b> --json
+   reins add-feature <slug> --title "<title>" --lane <lane> --depends-on <a,b> --json
    ```
 
    Do **not** pass `--with-spec`. The command dedupes by slug, so re-running is safe; report which features were added and which were skipped.
 <% if (it.isSdd) { %>
-6. **Spec pipeline — run it now, feature by feature.** This is where the human settles every detail, so that implementation later needs **no further questions or approvals**. Process the registered features **in dependency order, strictly one at a time** — a feature must reach `approved` before the next one leaves `pending` (`verify` allows only one `analyzing`). For each feature:
+6. **Spec pipeline — run it now, in parallel, with one round of questions.** This is where the human settles every detail, so that implementation later needs **no further questions or approvals**. Work by lane:
 
-   1. Set it `analyzing` in `feature_list.json`. Investigate the codebase yourself — read the relevant files, launch explorers for anything non-trivial. Copy `specs/_template/discovery.md` to `specs/<slug>/discovery.md` and fill it: findings, affected areas, approaches, and the **open questions** the human must answer. Set the feature `needs_clarification`.
-   2. Present **that feature's open questions in chat** and wait for the human's answers. Record the answers in the discovery's **Resolution** section.
-   3. Launch `spec_author` to write `requirements.md`, `design.md`, and `tasks.md` grounded in the resolved discovery — never in the bare title. It sets the feature `spec_ready`.
-   4. Present a short summary of the spec in chat and ask for approval. On approval, set the feature `approved`. If the human requests changes, revise the discovery/spec and re-present — never advance an unapproved feature.
-   5. Move on to the next feature.
+   - **`quick` / `chore` features** need nothing here — they stay `pending` and are ready for `/next-feature` (or `/autopilot`) as soon as their dependencies are `done`.
+   - **Discovery, all at once.** Set every `standard` and `full` feature `analyzing` (several may be analyzing at once — only `in_progress` is limited to one). Launch their explorers **concurrently**, then write each feature's document: `specs/<slug>/plan.md` (copied from `specs/_template/plan.md`) for `standard`, `specs/<slug>/discovery.md` for `full`. Set `standard` features `spec_ready` and `full` features `needs_clarification`.
+   - **One round of questions.** Present **every** open question from every feature in a **single message**, grouped by feature, with the standard plans summarized alongside. Wait for the human's answers, and record them in each document's **Resolution** (adjusting any plan an answer changes).
+   - **Specs, in parallel.** For the `full` features, launch `spec_author` for each — concurrently, since each writes only its own `specs/<slug>/` — grounded in the resolved discovery, never the bare title. Each sets its feature `spec_ready`.
+   - **One approval round.** Present a short summary of every plan and spec together and ask for approval — the human may approve all, or name the features to revise. Set each approved feature `approved`; revise and re-present the rest. Never advance an unapproved feature.
 
-   If this loop is interrupted, resume each feature from its current state (`analyzing`/`needs_clarification` → finish the Q&A; `spec_ready` → present for approval), or use `/validate-discovery <feature>` and `/approve-spec <feature>` individually.
+   If this is interrupted, resume each feature from its current state (`analyzing`/`needs_clarification` → finish the Q&A; `spec_ready` → present for approval), or use `/validate-discovery <feature>` (full lane) and `/approve-spec <feature>` individually.
 
-7. **Close the loop.** Record the final feature list in the **Resolution** section of `progress/brainstorm_<epic-slug>.md`, run `<%= it.verifyCmd %>` to confirm a green tree, then tell the human: every feature is `approved` — from here, `/next-feature` implements them one at a time with **no further questions or approvals**.
+7. **Close the loop.** Record the final feature list in the **Resolution** section of `progress/brainstorm_<epic-slug>.md`, run `<%= it.verifyCmd %>` to confirm a green tree, then tell the human: every `standard`/`full` feature is `approved` and every `quick`/`chore` feature is ready — from here, `/next-feature` (or `/autopilot`) implements them one at a time with **no further questions or approvals**.
 
-Remember: brainstorm registers features and carries each one to `approved` — it never sets a feature `in_progress`, and all human questioning belongs here, not during implementation. Write every file you save (`progress/brainstorm_*.md`, discoveries, specs) in English, even if this conversation is in another language.
+Remember: brainstorm registers features and carries each `standard`/`full` one to `approved` — it never sets a feature `in_progress`, and all human questioning belongs here, not during implementation. Write every file you save (`progress/brainstorm_*.md`, plans, discoveries, specs) in English, even if this conversation is in another language.
 <% } else { %>
-6. **Close the loop.** Record the final feature list in the **Resolution** section of `progress/brainstorm_<epic-slug>.md`, run `<%= it.verifyCmd %>` to confirm a green tree, then tell the human to start work with `/next-feature`. Each feature will be implemented (then reviewed) directly, one at a time.
+6. **Close the loop.** Record the final feature list in the **Resolution** section of `progress/brainstorm_<epic-slug>.md`, run `<%= it.verifyCmd %>` to confirm a green tree, then tell the human to start work with `/next-feature` (or `/autopilot`). Each feature will be implemented directly, one at a time, with the review its lane calls for.
 
 Remember: brainstorm only ever creates `pending` features — it never sets a feature `in_progress`. Write every file you save (`progress/brainstorm_*.md` and any other artifact) in English, even if this conversation is in another language.
 <% } %>

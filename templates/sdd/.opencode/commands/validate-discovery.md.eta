@@ -2,7 +2,7 @@
 description: Validate a feature's discovery so spec authoring can begin (SDD).
 ---
 
-A human is validating the discovery for `$ARGUMENTS` (currently `needs_clarification`).
+A human is validating the discovery for `$ARGUMENTS` (currently `needs_clarification`). This gate exists only in the `full` lane — a `standard` feature's questions are answered in its `plan.md` and approved in one step with `/approve-spec`.
 
 1. Confirm `specs/$ARGUMENTS/discovery.md` exists and that its **Open questions** are answered in the **Resolution** section. If anything is still open or contradictory, say exactly what is missing instead of proceeding.
 2. Once the intent is clear, delegate to the `spec_author` subagent to write `requirements.md`, `design.md`, and `tasks.md` grounded in the resolved discovery — never in the bare title.

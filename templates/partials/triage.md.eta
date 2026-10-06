@@ -1,0 +1,33 @@
+<% const oc = it.runtime === "opencode"; const launch = oc ? "delegate to" : "launch"; const Launch = oc ? "Delegate to" : "Launch"; %>## Triage first — pick the lane
+
+Every new task starts with one command, before you plan anything:
+
+```
+npx reins route "<the task, in the human's words>" --json
+```
+
+It recommends a **lane**, the complexity, the implementer model and effort, and which reviewers to run — asking Jev when `TYPESAFE_API_KEY` is set (falling back to a local heuristic when it isn't, or when Jev is unsure). It is advice, not law: override it when the codebase says otherwise (a "quick" rename that turns out to touch 30 files is not quick) and say why in one line. Before starting, tell the human the route in one line, e.g. `Route: chore · medium · implementer sonnet · 1 reviewer (via Jev)` — they can always ask for a different lane.
+
+| Lane | Typical task | Process | Human gate |
+| --- | --- | --- | --- |
+| `quick` | typo, copy, style tweak, rename, one-line fix | no queue entry, no spec, no reviewer: implementer → gate | none |
+| `chore` | framework/SDK upgrade (Expo, React Native, Next…), dependency bumps, codemods, deprecations — **one feature per upgrade** | queued; implementer works an upstream-guide checklist in an apply → verify → fix loop on a build budget; one regression review | none |
+| `standard` | ordinary feature or bug fix | queued; <% if (it.isSdd) { %>one-page `specs/<slug>/plan.md` → **one** approval → <% } %>implementer → reviewer | <%= it.isSdd ? "one (the plan)" : "none" %> |
+| `full` | auth, payments, data model, architecture, large or ambiguous work | queued; <% if (it.isSdd) { %>discovery → questions → spec (`spec_author`) → approval → <% } else { %>explorers → <% } %>implementer → every applicable reviewer | <%= it.isSdd ? "two (intent, then spec)" : "none" %> |
+
+### Running each lane
+
+- **quick** — No `feature_list.json` entry. <%= Launch %> `implementer` with `Lane: quick` and the task. It edits, self-verifies with `<%= it.verifyCmd %> --changed`, and logs one line in `progress/history.md`. You run `<%= it.verifyCmd %>` once and report. No reviewer.
+- **chore** — `reins add-feature <slug> --title "<title>" --lane chore`, then set it `in_progress` directly: the human's request is the approval<% if (it.isSdd) { %> — no discovery, plan, or spec<% } %>. <%= Launch %> `implementer` with `Lane: chore`: it writes the upgrade checklist from the official guide/changelog, then loops apply → `<%= it.verifyCmd %> --changed` → fix. Then one `reviewer` pass with `Lane: chore` (regressions only).
+<% if (it.isSdd) { %>- **standard** — `reins add-feature <slug> --title "<title>" --lane standard`, set it `analyzing`, read the relevant code (cheap explorers only if the area is unfamiliar), copy `specs/_template/plan.md` to `specs/<slug>/plan.md` and fill it: findings, approach, acceptance criteria, tasks, and any open questions. Set it `spec_ready` and present the plan **and** its questions in **one** message. The human answers and approves in one reply: record the answers in the plan's **Resolution**, set `approved`, then `in_progress` → `implementer` → `reviewer` (+ any reviewer the route or the diff calls for), all with `Lane: standard`.
+- **full** — `reins add-feature <slug> --title "<title>" --lane full`, then the full SDD pipeline: discovery → open questions → `spec_author` → spec approval → implementer → every applicable reviewer, all with `Lane: full`.
+<% } else { %>- **standard** — `reins add-feature <slug> --title "<title>" --lane standard`, set it `in_progress`, <%= launch %> `implementer` (it writes a 3–5 bullet plan in `progress/current.md`), then `reviewer` (+ any reviewer the route or the diff calls for), all with `Lane: standard`.
+- **full** — `reins add-feature <slug> --title "<title>" --lane full`, <%= launch %> 1–2 cheap explorers first, then `implementer` → `reviewer` + every applicable specialist reviewer, all with `Lane: full`.
+<% } %>
+### Rules of the road
+
+<% if (oc) { %>- The route's model hints are informational on opencode (agents use the models configured in `.opencode/agents/`); lane, effort, and reviewers still apply.
+<% } else { %>- Launch on the route's models (the Agent tool's `model` parameter): `implementer` on `models.implementer`, reviewers on `models.reviewer`, explorers on `haiku`. The route's `effort` is how hard to push: low = act on the obvious reading, high = explore alternatives first.
+<% } %>- Put the lane and the route's verification budget on the first line of every subagent prompt (`Lane: chore · Verify: smoke e2e, ≤1 native build/platform, no release build`); subagents scale their reading, verification, and reporting to it. Verification beyond the budget needs the human to ask for it.
+- Security-sensitive work is never `quick` (the router enforces this). When torn between two lanes, take the lighter one — and if the work proves bigger, **escalate** by re-registering it in the next lane up. Never skip a gate a lane requires.
+- Several features at once (an epic) → `/brainstorm`; each feature gets its own lane there.

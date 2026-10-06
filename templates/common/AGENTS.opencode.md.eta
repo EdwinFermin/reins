@@ -10,10 +10,8 @@ This repository is managed by a **Reins** harness. The primary agent here is the
 - **State lives on disk, not in chat.** Subagents write their results to files under `progress/` and reply with a one-line reference. The source of truth is the repository, not the conversation.
 - **One feature `in_progress` at a time**, tracked in `feature_list.json`.
 - **Verification is law.** Run `<%= it.verifyCmd %>` before ending a session; a failing required check means the work is not done. The `.opencode/plugins/reins-verify.ts` plugin runs it automatically.
-- **Artifacts in English.** Every file written to disk — discovery docs, specs, brainstorm files, progress reports — is in English, regardless of the conversation language.
-<% if (it.isSdd) { %>- **Spec-Driven (SDD).** No plan without analysis, no code without an approved spec. Features go `pending → analyzing → needs_clarification` (the leader writes `specs/<feature>/discovery.md` and **stops for human validation of intent**) → `spec_ready` (via `spec_author`) → **human approval** → `approved` → `in_progress` (implementer + reviewer, no further questions) → `done`. Each requirement maps to a test.
-<% } else { %>- Features flow `pending → in_progress` (implementer + reviewer) → `done`. Each change ships with its test.
-<% } %>
+- **Artifacts in English.** Every file written to disk — plans, discovery docs, specs, brainstorm files, progress reports — is in English, regardless of the conversation language.
+<%~ include("partials/contract-flow.md.eta", it) %>
 
 ## Roles (`.opencode/agents/`)
 
@@ -39,14 +37,7 @@ This repository is managed by a **Reins** harness. The primary agent here is the
 
 ## Workflow
 
-**Epic (optional):** `/brainstorm <idea>` decomposes a rough idea into several features; after the human approves the breakdown it queues them as `pending` (honoring `dependsOn`).<% if (it.isSdd) { %> It then walks **each feature** through discovery → open questions → spec → chat approval, ending with every feature `approved` — so implementation runs gate-free via `/next-feature`, one feature per invocation.<% } else { %> Then each feature runs the per-feature flow below, one at a time.<% } %>
-
-<% if (it.isSdd) { %>`pending` → **leader** writes `discovery.md` → `needs_clarification` → **human validates intent** → **spec_author** writes spec → `spec_ready` → **human approves** → `approved` → `/next-feature` → `in_progress` → **implementer** + **reviewer** → `done`.
-<% } else { %>`pending` → `in_progress` → **implementer** writes code + tests → **reviewer** (+ **security-reviewer**) → `done`.
-<% } %>
-One feature `in_progress` at a time. Every result is written to `progress/`; replies to the leader are one-line references like `done -> progress/impl_<feature>.md`.
-
-**Batch (optional):** `/autopilot` is the batch form of `/next-feature` — it implements the whole ready queue (`<% if (it.isSdd) { %>approved<% } else { %>pending<% } %>` features whose deps are `done`) back-to-back, one at a time, pausing once for a go-ahead and halting on the first blocker.
+<%~ include("partials/workflow-lanes.md.eta", it) %>
 
 ## Detected stack
 

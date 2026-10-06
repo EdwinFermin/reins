@@ -21,20 +21,13 @@ Per-role model and effort are set in `reins.config.json` under `agents` (`inheri
 
 ## Workflow
 
-**Epic (optional):** `/brainstorm <idea>` decomposes a rough idea into several features; after the human approves the breakdown it queues them as `pending` (honoring `dependsOn`).<% if (it.isSdd) { %> It then walks **each feature** through discovery → open questions → spec → chat approval, ending with every feature `approved` — so implementation runs gate-free via `/next-feature`, one feature per invocation.<% } else { %> Then each feature runs the per-feature flow below, one at a time.<% } %>
-
-<% if (it.isSdd) { %>`pending` → **leader** writes `discovery.md` → `needs_clarification` → **human validates intent** → **spec_author** writes spec → `spec_ready` → **human approves** → `approved` → `/next-feature` → `in_progress` → **implementer** + **reviewer** → `done`.
-<% } else { %>`pending` → `in_progress` → **implementer** writes code + tests → **reviewer** (+ **security-reviewer**) → `done`.
-<% } %>
-One feature `in_progress` at a time. Every result is written to `progress/`; replies to the leader are one-line references like `done -> progress/impl_<feature>.md`.
-
-**Batch (optional):** `/autopilot` is the batch form of `/next-feature` — it implements the whole ready queue (`<% if (it.isSdd) { %>approved<% } else { %>pending<% } %>` features whose deps are `done`) back-to-back, one at a time, pausing once for a go-ahead and halting on the first blocker.
+<%~ include("partials/workflow-lanes.md.eta", it) %>
 
 **All artifacts are written in English.** Chat can happen in any language; files written to disk (`specs/`, `progress/`, docs) are always English.
 
 ## Verification is law
 
-`<%= it.verifyCmd %>` runs the project's gate (lint, tests, e2e, security) cross-platform and returns non-zero when a required check fails. It is wired into Claude Code hooks (`.claude/settings.json`): tests run after edits, and the session is blocked from ending on a red tree. Run `reins doctor` to check the harness itself.
+`<%= it.verifyCmd %>` runs the project's gate (lint, tests, e2e, security) cross-platform and returns non-zero when a required check fails. It is wired into Claude Code hooks (`.claude/settings.json`): each edit lints the changed file, the implementer runs the related tests, and the session is blocked from ending on a red tree. A pass on an unchanged tree is reused from cache, so repeated runs are cheap. Run `reins doctor` to check the harness itself.
 
 ## Session close checklist
 

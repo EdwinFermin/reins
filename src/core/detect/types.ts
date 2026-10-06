@@ -16,6 +16,10 @@ export interface DetectedCommands {
   lint?: DetectedCommand;
   e2e?: DetectedCommand;
   typecheck?: DetectedCommand;
+  /** Lint only the given files (`{files}` placeholder). */
+  lintChanged?: DetectedCommand;
+  /** Run only the tests related to the given files (`{files}` placeholder). */
+  testChanged?: DetectedCommand;
 }
 
 /** Everything Reins inferred about the target project's stack. */
